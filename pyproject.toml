@@ -1,0 +1,65 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "redis-kernel"
+version = "0.1.0"
+description = "A Jupyter kernel that behaves like redis-cli"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Nic Gibson", email = "nic.gibson@redis.com" }]
+keywords = ["redis", "jupyter", "kernel", "ipython", "redis-cli"]
+classifiers = [
+  "Framework :: Jupyter",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Programming Language :: Python :: 3",
+  "Topic :: Database",
+]
+dependencies = [
+  "ipykernel>=6.29",
+  "redis>=5.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "jupyter_kernel_test>=0.7",
+  "ruff>=0.6",
+  "mypy>=1.11",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/redis_kernel"]
+
+[tool.hatch.build.targets.wheel.shared-data]
+"src/redis_kernel/kernelspec" = "share/jupyter/kernels/redis"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "redis: test requires a live Redis server at REDIS_URL",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Connection flags are tested as the command line they mirror: splitting
+# "-h cache --tls --insecure" reads better than a ten-element list literal.
+"tests/**" = ["SIM905"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["redis.*", "ipykernel.*", "jupyter_kernel_test.*"]
+ignore_missing_imports = true
