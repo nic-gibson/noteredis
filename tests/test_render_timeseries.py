@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.render import RENDERERS, render
+from noteredis.render import RENDERERS, render
 
 
 def test_renderers_are_registered() -> None:

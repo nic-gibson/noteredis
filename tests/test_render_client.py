@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.formatter import Verbatim
-from redis_kernel.render import RENDERERS, render
+from noteredis.formatter import Verbatim
+from noteredis.render import RENDERERS, render
 
 ONE_LINE = b"id=3 addr=127.0.0.1:1234 name=alice age=10 cmd=get\n"
 TWO_LINES = (

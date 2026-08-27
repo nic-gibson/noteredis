@@ -1,6 +1,6 @@
 """Install the kernelspec, pinned to the interpreter running this module.
 
-    python -m redis_kernel.install --user
+    python -m noteredis.install --user
 
 ``kernelspec/kernel.json`` in this package is a *template*, not an installable
 spec: nothing knows the interpreter path until install time. Its ``argv[0]`` is
@@ -8,7 +8,7 @@ spec: nothing knows the interpreter path until install time. Its ``argv[0]`` is
 ever installed directly -- better than the ``python`` it used to hold, which
 resolved against whatever ``PATH`` the Jupyter *server* happened to have and so
 worked in a single-environment setup and failed with a puzzling
-``No module named redis_kernel`` anywhere else.
+``No module named noteredis`` anywhere else.
 
 The wheel deliberately ships no ``share/jupyter/kernels`` data for the same
 reason, so installing the kernel is this one explicit step.
@@ -31,7 +31,7 @@ KERNEL_NAME = "redis"
 SPEC_DIR = Path(__file__).parent / "kernelspec"
 
 #: What the template carries in ``argv[0]`` until this module replaces it.
-PLACEHOLDER = "PYTHON-SET-BY-redis-kernel-install"
+PLACEHOLDER = "PYTHON-SET-BY-noteredis-install"
 
 
 def kernel_json(executable: str | None = None) -> dict[str, object]:
@@ -88,7 +88,7 @@ def main(argv: list[str] | None = None) -> int:
     prefix = sys.prefix if args.sys_prefix else args.prefix
     where = install(user=not prefix, prefix=prefix)
     print(f"installed the '{KERNEL_NAME}' kernelspec to {where}")
-    print(f"it will run: {sys.executable} -m redis_kernel")
+    print(f"it will run: {sys.executable} -m noteredis")
     return 0
 
 

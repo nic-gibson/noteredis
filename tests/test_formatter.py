@@ -21,8 +21,8 @@ from typing import Any
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from redis_kernel.formatter import format_error, format_reply
-from redis_kernel.resp import parser_for_protocol
+from noteredis.formatter import format_error, format_reply
+from noteredis.resp import parser_for_protocol
 
 CORPUS_PATH = pathlib.Path(__file__).parent / "captured" / "redis_cli_replies.json"
 

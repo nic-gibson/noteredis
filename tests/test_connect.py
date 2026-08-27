@@ -13,13 +13,13 @@ from typing import Any
 import pytest
 from redis.connection import SSLConnection, UnixDomainSocketConnection
 
-from redis_kernel.client import (
+from noteredis.client import (
     ConnectionSettings,
     NotConnected,
     RedisSession,
     ServerInfo,
 )
-from redis_kernel.magics import (
+from noteredis.magics import (
     MagicError,
     _plain_doc,
     expand_variables,

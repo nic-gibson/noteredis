@@ -1,8 +1,8 @@
 {
   "argv": [
-    "PYTHON-SET-BY-redis-kernel-install",
+    "PYTHON-SET-BY-noteredis-install",
     "-m",
-    "redis_kernel",
+    "noteredis",
     "-f",
     "{connection_file}"
   ],

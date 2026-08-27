@@ -11,10 +11,10 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.client import RedisSession
-from redis_kernel.formatter import format_reply
-from redis_kernel.kernel import RedisKernel
-from redis_kernel.magics import MagicError, handle_magic
+from noteredis.client import RedisSession
+from noteredis.formatter import format_reply
+from noteredis.kernel import RedisKernel
+from noteredis.magics import MagicError, handle_magic
 
 HASH = [b"name", b"Ada Lovelace"]
 
@@ -80,7 +80,7 @@ def test_plain_mode_does_not_even_consult_the_renderers(kernel: RedisKernel) -> 
     """Not merely hidden: nothing rich should reach the saved notebook."""
     handle_magic(kernel.redis, ["%config", "render", "plain"])
     called = []
-    import redis_kernel.kernel as kernel_module
+    import noteredis.kernel as kernel_module
 
     original = kernel_module.render
     kernel_module.render = lambda args, reply: called.append(args)  # type: ignore[assignment]

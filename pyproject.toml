@@ -3,19 +3,25 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "redis-kernel"
-version = "0.3.1"
+name = "noteredis"
+version = "0.4.0"
 description = "A Jupyter kernel that behaves like redis-cli"
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10"
-authors = [{ name = "Nic Gibson", email = "nic.gibson@redis.com" }]
+authors = [{ name = "Nic Gibson", email = "nicg@noslogan.org" }]
 keywords = ["redis", "jupyter", "kernel", "ipython", "redis-cli"]
 classifiers = [
+  "Development Status :: 4 - Beta",
   "Framework :: Jupyter",
   "Intended Audience :: Developers",
   "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: BSD License",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Topic :: Database",
 ]
 dependencies = [
@@ -24,10 +30,15 @@ dependencies = [
   "redis>=5.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/nic-gibson/noteredis"
+Repository = "https://github.com/nic-gibson/noteredis"
+Issues = "https://github.com/nic-gibson/noteredis/issues"
+
 [project.scripts]
-# Writes a kernelspec pinned to this interpreter; see redis_kernel/install.py
+# Writes a kernelspec pinned to this interpreter; see noteredis/install.py
 # for why the packaged kernel.json cannot do that on its own.
-redis-kernel-install = "redis_kernel.install:main"
+noteredis-install = "noteredis.install:main"
 
 [project.optional-dependencies]
 dev = [
@@ -38,14 +49,14 @@ dev = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/redis_kernel"]
+packages = ["src/noteredis"]
 
 # Deliberately no shared-data entry installing the kernelspec into
 # share/jupyter/kernels. Copying it there verbatim would register a kernel whose
 # argv says "python", resolved against whatever PATH the Jupyter server has --
 # right when the server and the kernel share an environment, and a confusing
-# "No module named redis_kernel" when they do not. redis_kernel/kernelspec is a
-# template; redis_kernel.install writes a real spec with sys.executable in it.
+# "No module named noteredis" when they do not. noteredis/kernelspec is a
+# template; noteredis.install writes a real spec with sys.executable in it.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -85,5 +96,5 @@ implicit_reexport = true
 # are artefacts of that base class, not of this module -- everything else stays
 # strict, including the same codes everywhere else in the package.
 [[tool.mypy.overrides]]
-module = ["redis_kernel.kernel"]
+module = ["noteredis.kernel"]
 disable_error_code = ["override", "no-untyped-call"]

@@ -35,7 +35,7 @@ __all__ = ["RedisKernel"]
 class RedisKernel(Kernel):
     """A kernel whose cells are Redis commands."""
 
-    implementation = "redis_kernel"
+    implementation = "noteredis"
     implementation_version = __version__
 
     language = "redis"
@@ -71,7 +71,7 @@ class RedisKernel(Kernel):
         except RedisError:
             info = None
         target = info.render().strip() if info else f"not connected ({self.redis.url})"
-        return f"redis-kernel {__version__}\n{target}\n"
+        return f"noteredis {__version__}\n{target}\n"
 
     # -- execution -------------------------------------------------------- #
 

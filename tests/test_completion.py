@@ -11,8 +11,8 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.client import RedisSession, completable_key, escape_glob
-from redis_kernel.commands import CommandInfo, CommandTable, KeySpec, load_key_spec
+from noteredis.client import RedisSession, completable_key, escape_glob
+from noteredis.commands import CommandInfo, CommandTable, KeySpec, load_key_spec
 
 # --------------------------------------------------------------------------- #
 # Where the keys are
