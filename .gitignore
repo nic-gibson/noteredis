@@ -1,0 +1,82 @@
+# Byte-compiled / cached
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+build/
+dist/
+sdist/
+wheels/
+*.egg-info/
+*.egg
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Installer / resolver caches
+.uv/
+pip-log.txt
+pip-wheel-metadata/
+
+# Test, lint and type-check caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+.tox/
+.nox/
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_checkpoints
+.jupyter/
+.local/
+profile_default/
+ipython_config.py
+
+# Notebooks written while poking at a server: these can hold real hostnames,
+# keys and values from a customer's keyspace. Commit a runbook deliberately
+# with `git add -f`, don't let one arrive by accident.
+scratch/
+scratch*.ipynb
+*.local.ipynb
+
+# Connection details — REDIS_URL may carry ACL credentials
+.env
+.env.*
+!.env.example
+
+# TLS material for rediss:// targets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Redis server artefacts, in case one is run from the repo root
+dump.rdb
+appendonly.aof
+appendonlydir/
+*.rdb
+redis-server.log
+
+# Editors and IDEs
+.idea/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*

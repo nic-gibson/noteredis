@@ -1,0 +1,89 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "redis-kernel"
+version = "0.1.0"
+description = "A Jupyter kernel that behaves like redis-cli"
+readme = "README.md"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+authors = [{ name = "Nic Gibson", email = "nic.gibson@redis.com" }]
+keywords = ["redis", "jupyter", "kernel", "ipython", "redis-cli"]
+classifiers = [
+  "Framework :: Jupyter",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Programming Language :: Python :: 3",
+  "Topic :: Database",
+]
+dependencies = [
+  "ipykernel>=6.29",
+  "jupyter_client>=8.0",
+  "redis>=5.0",
+]
+
+[project.scripts]
+# Writes a kernelspec pinned to this interpreter; see redis_kernel/install.py
+# for why the packaged kernel.json cannot do that on its own.
+redis-kernel-install = "redis_kernel.install:main"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.0",
+  "jupyter_kernel_test>=0.7",
+  "ruff>=0.6",
+  "mypy>=1.11",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/redis_kernel"]
+
+# Deliberately no shared-data entry installing the kernelspec into
+# share/jupyter/kernels. Copying it there verbatim would register a kernel whose
+# argv says "python", resolved against whatever PATH the Jupyter server has --
+# right when the server and the kernel share an environment, and a confusing
+# "No module named redis_kernel" when they do not. redis_kernel/kernelspec is a
+# template; redis_kernel.install writes a real spec with sys.executable in it.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "redis: test requires a live Redis server at REDIS_URL",
+]
+
+[tool.ruff]
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# Connection flags are tested as the command line they mirror: splitting
+# "-h cache --tls --insecure" reads better than a ten-element list literal.
+"tests/**" = ["SIM905"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+files = ["src"]
+
+[[tool.mypy.overrides]]
+module = ["redis.*", "ipykernel.*", "jupyter_kernel_test.*"]
+ignore_missing_imports = true
+# These packages re-export names without declaring them (StdinNotImplementedError
+# reaches us via ipykernel.kernelbase but is defined in IPython), and importing
+# from the private original instead would be the more fragile choice.
+implicit_reexport = true
+
+# kernel.py subclasses ipykernel's Kernel, which is untyped: its methods are
+# declared as returning Coroutine[Any, Any, Any] even though a wrapper kernel is
+# expected to override them synchronously (the base awaits the result if it is
+# awaitable), and its own helpers carry no annotations. Both error codes below
+# are artefacts of that base class, not of this module -- everything else stays
+# strict, including the same codes everywhere else in the package.
+[[tool.mypy.overrides]]
+module = ["redis_kernel.kernel"]
+disable_error_code = ["override", "no-untyped-call"]
