@@ -18,7 +18,7 @@ from typing import Any
 
 from ..formatter import Double, Status, Verbatim, format_reply, quote_bytes
 
-__all__ = ["cell_text", "escape", "table", "union_labels"]
+__all__ = ["cell_text", "escape", "rows_table", "table", "union_labels"]
 
 
 def cell_text(value: Any) -> str:
@@ -78,6 +78,23 @@ def union_labels(
                     return None
                 labels.append(label)
     return labels
+
+
+def rows_table(pairs_per_row: Iterable[Sequence[tuple[Any, Any]]], max_columns: int) -> str | None:
+    """An HTML table with one row per pairs-shaped entry, or ``None`` past ``max_columns``.
+
+    Shared by every renderer with no fixed schema and no id column of its
+    own -- ``FT.AGGREGATE``'s groups, ``XINFO GROUPS``/``CONSUMERS``' entries.
+    """
+    rows = list(pairs_per_row)
+    columns = union_labels(rows, max_columns)
+    if not columns:
+        return None
+    out_rows = []
+    for pairs in rows:
+        field_map = {cell_text(name): value for name, value in pairs}
+        out_rows.append([field_map.get(column, "") for column in columns])
+    return table(columns, out_rows)
 
 
 def table(headers: Sequence[str], rows: Iterable[Sequence[Any]], caption: str | None = None) -> str:

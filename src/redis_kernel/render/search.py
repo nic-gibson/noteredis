@@ -27,8 +27,8 @@ from __future__ import annotations
 from typing import Any
 
 from . import renderer
-from ._html import cell_text, table, union_labels
-from ._shapes import as_items, as_pairs
+from ._html import cell_text, rows_table, table, union_labels
+from ._shapes import as_items, as_pairs, rows_of_pairs
 
 __all__ = ["render_aggregate", "render_search"]
 
@@ -95,16 +95,8 @@ def render_aggregate(args: list[str], reply: Any) -> dict[str, Any] | None:
     rows = _aggregate_rows(_unwrap_cursor(reply))
     if not rows:
         return None
-
-    columns = union_labels(rows, MAX_COLUMNS)
-    if not columns:
-        return None
-
-    out_rows = []
-    for pairs in rows:
-        field_map = {cell_text(name): value for name, value in pairs}
-        out_rows.append([field_map.get(column, "") for column in columns])
-    return {"text/html": table(columns, out_rows)}
+    html = rows_table(rows, MAX_COLUMNS)
+    return {"text/html": html} if html else None
 
 
 def _search_hits(args: list[str], reply: Any) -> list[dict[str, Any]] | None:
@@ -184,10 +176,7 @@ def _aggregate_rows(reply: Any) -> list[list[tuple[Any, Any]]] | None:
     items = as_items(reply)
     if not items:
         return None
-    rows = []
-    for row in items[1:]:
-        pairs = as_pairs(row)
-        if pairs is None:
-            return None  # e.g. WITHSCHEMA's extra leading element; not our shape
-        rows.append(pairs)
-    return rows
+    # items[1:] drops the leading total-results count; a WITHSCHEMA reply's
+    # extra leading element ends up parsed as if it were a row instead, which
+    # is not pairs-shaped either, so rows_of_pairs correctly bails to None.
+    return rows_of_pairs(items[1:])

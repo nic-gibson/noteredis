@@ -223,6 +223,14 @@ Some replies get a richer representation added alongside the text:
 | `JSON.GET`, `JSON.MGET`, `JSON.ARRPOP` | `application/json`, so JupyterLab shows a collapsible tree |
 | `FT.SEARCH` | one row per document, one column per field (`WITHSCORES`/`WITHPAYLOADS` add columns) |
 | `FT.AGGREGATE` | one row per group, one column per field |
+| `MEMORY STATS`, `BF.INFO`, `CF.INFO` | metric/value table |
+| `ZRANGE` and friends, `ZPOPMIN`/`ZPOPMAX`, `HRANDFIELD` | member/score (or field/value) table, when the reply carries one |
+| `XINFO GROUPS`, `XINFO CONSUMERS` | one row per group/consumer, one column per property |
+| `SLOWLOG GET` | one row per entry: id, timestamp, duration, command, client |
+| `LATENCY HISTORY`, `LATENCY LATEST` | one row per sample/event |
+| `CLIENT INFO` | property/value table |
+| `CLIENT LIST` | one row per client, one column per property |
+| `TS.RANGE`, `TS.REVRANGE` | one row per sample |
 
 `text/plain` is always the exact `redis-cli` text, in every mode — a renderer
 only ever *adds* to the bundle. A renderer handed a reply shape it doesn't

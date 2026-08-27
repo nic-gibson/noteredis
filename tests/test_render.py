@@ -93,6 +93,23 @@ def test_pair_renderer_declines_other_shapes(reply: Any) -> None:
     assert render(["HGETALL", "user:1"], reply) is None
 
 
+@pytest.mark.parametrize(
+    ("command", "reply"),
+    [
+        (["MEMORY", "STATS"], [b"peak.allocated", 12345]),
+        (["BF.INFO", "filter"], [b"Capacity", 1000, b"Size", 128]),
+        (["CF.INFO", "filter"], [b"Size", 128, b"Number of buckets", 512]),
+    ],
+)
+def test_memory_and_probabilistic_info_reuse_the_pairs_table(
+    command: list[str], reply: Any
+) -> None:
+    """Same flat key/value shape as CONFIG GET, just a different command name."""
+    bundle = render(command, reply)
+    assert bundle is not None
+    assert "<th>metric</th>" in bundle["text/html"]
+
+
 # --------------------------------------------------------------------------- #
 # Streams
 # --------------------------------------------------------------------------- #
