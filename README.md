@@ -18,12 +18,12 @@ runbook.
 
 ## Installation
 
-From a checkout:
-
 ```bash
-pip install -e '.[dev]'      # or: uv sync
+pip install noteredis
 noteredis-install --user     # or: python -m noteredis.install --user
 ```
+
+(Working from a checkout instead? See [Development](#development).)
 
 Check it took:
 
