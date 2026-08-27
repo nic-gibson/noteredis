@@ -143,7 +143,8 @@ class RedisKernelTests(jupyter_kernel_test.KernelTests):
         bundles = [m["content"]["data"] for m in messages if m["msg_type"] == "display_data"]
         assert len(bundles) == 1
         assert "<table>" in bundles[0]["text/html"]
-        assert bundles[0]["text/plain"] == '1) "f"\n2) "v"\n'
+        # RESP3 is the default protocol, so HGETALL comes back as a map.
+        assert bundles[0]["text/plain"] == '1# "f" => "v"\n'
 
     def test_plain_mode_sends_no_rich_output(self) -> None:
         # Sets its own key up: these tests share a server, and one that leaned
@@ -153,7 +154,7 @@ class RedisKernelTests(jupyter_kernel_test.KernelTests):
             "%render plain\nDEL proto:plain\nHSET proto:plain f v\nHGETALL proto:plain"
         )
         assert not [m for m in messages if m["msg_type"] == "display_data"]
-        assert '1) "f"' in self._stdout(messages)
+        assert '1# "f"' in self._stdout(messages)
 
     def test_status_reports_the_server(self) -> None:
         self.flush_channels()

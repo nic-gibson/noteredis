@@ -254,7 +254,7 @@ class ConnectionSettings:
     #: Unix socket path. Takes precedence over host and port when set.
     socket: str | None = None
     db: int = 0
-    protocol: int = 2
+    protocol: int = 3
     username: str | None = None
     password: str | None = None
     tls: bool = False

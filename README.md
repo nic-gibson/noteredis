@@ -75,7 +75,7 @@ The flags are `redis-cli`'s own, so there is nothing new to learn:
 | `-n DB` | database number |
 | `-s PATH` | unix socket instead of host/port |
 | `-u URL` | a `redis://` or `rediss://` URL; later flags override its parts |
-| `-2` / `-3` | RESP protocol version |
+| `-2` / `-3` | RESP protocol version (default: RESP3) |
 | `--user NAME` | ACL username |
 | `--pass PASS` / `-a PASS` | password |
 | `--askpass` | prompt for the password instead of writing it down |
@@ -243,10 +243,13 @@ output, per theme, and a palette of ours would fight it in half of them.
 
 ### RESP3
 
-`%connect -3`, `%protocol 3`, or a plain `HELLO 3` switches the connection, and
-the formatter follows: maps render as `1# "k" => "v"`, and sets, doubles,
-booleans, big numbers, and verbatim strings each get their `redis-cli` RESP3
-rendering.
+RESP3 is the default protocol for a new connection. The formatter follows:
+maps render as `1# "k" => "v"`, and sets, doubles, booleans, big numbers, and
+verbatim strings each get their `redis-cli` RESP3 rendering.
+
+`%connect -2`, `%protocol 2`, or a plain `HELLO 2` switches back to RESP2 —
+useful against a server too old to speak RESP3, or to match a runbook that
+was written against RESP2 output.
 
 ### Blocking and streaming commands are out of scope
 
