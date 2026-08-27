@@ -339,7 +339,8 @@ def _render(session: RedisSession, args: list[str], prompt: Prompt | None) -> st
 
     A one-cell override of ``%config render``, cleared when the cell ends, so
     looking at one reply as a table does not quietly change how every later
-    cell renders. With no argument it reports the mode in force.
+    cell renders. With no argument it reports the mode in force; setting it
+    is silent, so it can sit on its own line without cluttering the output.
     """
     del prompt
     if not args:
@@ -347,7 +348,7 @@ def _render(session: RedisSession, args: list[str], prompt: Prompt | None) -> st
     if len(args) > 1:
         raise MagicError("%render: expected a single mode")
     session.render_override = _parse_render_mode(args[0], magic="%render")
-    return f"{session.render_override} (this cell)\n"
+    return ""
 
 
 def _help(session: RedisSession, args: list[str], prompt: Prompt | None) -> str:

@@ -100,8 +100,8 @@ def test_render_overrides_the_rest_of_the_cell(kernel: RedisKernel) -> None:
     handle_magic(kernel.redis, ["%config", "render", "plain"])
     messages = _messages(kernel, "HGETALL a\n%render rich\nHGETALL b")
     types = [msg_type for msg_type, _ in messages]
-    # plain reply, the magic's own output, then a rich reply
-    assert types == ["stream", "stream", "display_data"]
+    # plain reply, then a rich reply -- setting the override is silent
+    assert types == ["stream", "display_data"]
 
 
 def test_the_override_does_not_leak_into_the_next_cell(kernel: RedisKernel) -> None:
