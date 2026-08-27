@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from . import renderer
-from ._html import cell_text, table
+from ._html import cell_text, table, union_labels
 from ._shapes import as_items, as_pairs
 
 __all__ = ["render_stream_range"]
@@ -28,8 +28,7 @@ def render_stream_range(args: list[str], reply: Any) -> dict[str, Any] | None:
     if entries is None:
         return None
 
-    parsed: list[tuple[str, dict[str, Any]]] = []
-    fields: list[str] = []
+    parsed: list[tuple[str, list[tuple[Any, Any]]]] = []
     for entry in entries:
         pair = as_items(entry)
         if pair is None or len(pair) != 2:
@@ -37,17 +36,13 @@ def render_stream_range(args: list[str], reply: Any) -> dict[str, Any] | None:
         pairs = as_pairs(pair[1])
         if pairs is None:
             return None
-        row = {}
-        for name, value in pairs:
-            label = cell_text(name)
-            if label not in fields:
-                if len(fields) >= MAX_COLUMNS:
-                    return None
-                fields.append(label)
-            row[label] = value
-        parsed.append((cell_text(pair[0]), row))
+        parsed.append((cell_text(pair[0]), pairs))
 
+    fields = union_labels((pairs for _, pairs in parsed), MAX_COLUMNS)
     if not fields:
         return None
-    rows = [[entry_id, *(row.get(field, "") for field in fields)] for entry_id, row in parsed]
+    rows = []
+    for entry_id, pairs in parsed:
+        row_map = {cell_text(name): value for name, value in pairs}
+        rows.append([entry_id, *(row_map.get(field, "") for field in fields)])
     return {"text/html": table(["id", *fields], rows)}

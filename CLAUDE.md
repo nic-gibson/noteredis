@@ -119,7 +119,7 @@ Rich renderers, starting with HGETALL, XRANGE, and INFO.
 
 All of it is done. (Streaming was step 5 and has been dropped; see above.)
 
-Renderers so far: HGETALL, CONFIG GET, XINFO STREAM, XRANGE/XREVRANGE, INFO, and JSON.GET as application/json. Toggled with %config render rich|plain, or %render for one cell. Candidates not yet written: FT.SEARCH, MEMORY STATS, LATENCY HISTORY, XINFO GROUPS/CONSUMERS. Charts, where they make sense, are still unexplored — everything so far is a table.
+Renderers so far: HGETALL, CONFIG GET, XINFO STREAM, XRANGE/XREVRANGE, INFO, JSON.GET as application/json, and FT.SEARCH/FT.AGGREGATE. Toggled with %config render rich|plain, or %render for one cell. Candidates not yet written: MEMORY STATS, LATENCY HISTORY, XINFO GROUPS/CONSUMERS. Charts, where they make sense, are still unexplored — everything so far is a table.
 
 Installing the kernelspec
 
