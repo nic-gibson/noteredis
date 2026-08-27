@@ -20,12 +20,13 @@ HEADERS = {
     "HGETALL": ("field", "value"),
     "CONFIG GET": ("parameter", "value"),
     "XINFO STREAM": ("property", "value"),
-    "CLIENT INFO": ("property", "value"),
-    "HRANDFIELD": ("field", "value"),
+    "MEMORY STATS": ("metric", "value"),
+    "BF.INFO": ("metric", "value"),
+    "CF.INFO": ("metric", "value"),
 }
 
 
-@renderer("HGETALL", "CONFIG GET", "XINFO STREAM")
+@renderer("HGETALL", "CONFIG GET", "XINFO STREAM", "MEMORY STATS", "BF.INFO", "CF.INFO")
 def render_pairs(args: list[str], reply: Any) -> dict[str, Any] | None:
     """A two-column table, or nothing if the reply is not pair-shaped."""
     pairs = as_pairs(reply)
@@ -36,5 +37,16 @@ def render_pairs(args: list[str], reply: Any) -> dict[str, Any] | None:
 
 
 def _key(args: list[str]) -> str:
+    """The ``HEADERS`` key for ``args``: a subcommand form if one is labelled,
+    the bare command otherwise.
+
+    ``CONFIG GET``/``MEMORY STATS`` have a real subcommand as their second
+    token; ``BF.INFO``/``CF.INFO`` do not -- their second token is a key
+    name, arbitrary user data that must never end up as a lookup key.
+    """
     command = args[0].upper()
-    return f"{command} {args[1].upper()}" if len(args) > 1 else command
+    if len(args) > 1:
+        candidate = f"{command} {args[1].upper()}"
+        if candidate in HEADERS:
+            return candidate
+    return command
