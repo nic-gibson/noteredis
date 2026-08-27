@@ -13,8 +13,8 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.client import RedisSession, is_blocking
-from redis_kernel.kernel import RedisKernel
+from noteredis.client import RedisSession, is_blocking
+from noteredis.kernel import RedisKernel
 
 # --------------------------------------------------------------------------- #
 # What counts as blocking

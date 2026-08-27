@@ -17,9 +17,9 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.formatter import RedisMap, RedisSet, Status, Verbatim, format_reply
-from redis_kernel.render import RENDERERS, render
-from redis_kernel.render._html import cell_text, table
+from noteredis.formatter import RedisMap, RedisSet, Status, Verbatim, format_reply
+from noteredis.render import RENDERERS, render
+from noteredis.render._html import cell_text, table
 
 # --------------------------------------------------------------------------- #
 # The registry
@@ -36,7 +36,7 @@ def test_no_renderer_for_an_unremarkable_command() -> None:
 
 
 def test_a_renderer_that_raises_is_ignored() -> None:
-    from redis_kernel.render import renderer
+    from noteredis.render import renderer
 
     @renderer("BOOM")
     def _explode(args: list[str], reply: Any) -> dict[str, Any] | None:

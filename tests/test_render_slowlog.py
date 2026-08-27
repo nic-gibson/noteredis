@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.render import RENDERERS, render
+from noteredis.render import RENDERERS, render
 
 ENTRIES = [
     [1, 1700000000, 1234, [b"GET", b"foo"], b"127.0.0.1:1234", b"my-client"],

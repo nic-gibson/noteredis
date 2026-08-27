@@ -13,8 +13,8 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.formatter import Double, RedisMap, Status
-from redis_kernel.render import RENDERERS, render
+from noteredis.formatter import Double, RedisMap, Status
+from noteredis.render import RENDERERS, render
 
 
 def _map(pairs: dict[Any, Any]) -> RedisMap:

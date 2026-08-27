@@ -1,4 +1,4 @@
-"""Entry point: ``python -m redis_kernel -f {connection_file}``."""
+"""Entry point: ``python -m noteredis -f {connection_file}``."""
 
 from ipykernel.kernelapp import IPKernelApp
 

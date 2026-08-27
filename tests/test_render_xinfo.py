@@ -10,8 +10,8 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.formatter import RedisMap
-from redis_kernel.render import RENDERERS, render
+from noteredis.formatter import RedisMap
+from noteredis.render import RENDERERS, render
 
 GROUPS_RESP2 = [
     [b"name", b"g1", b"consumers", 1, b"pending", 0],

@@ -15,8 +15,8 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.formatter import RedisMap, Status
-from redis_kernel.render import RENDERERS, render
+from noteredis.formatter import RedisMap, Status
+from noteredis.render import RENDERERS, render
 
 
 def _map(pairs: dict[Any, Any]) -> RedisMap:

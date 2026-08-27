@@ -1,4 +1,4 @@
-redis-kernel
+noteredis
 
 A Jupyter kernel that behaves like redis-cli: each notebook cell contains one or more Redis commands, output matches redis-cli byte-for-byte in text/plain, with richer text/html / application/json representations layered on top.
 
@@ -25,7 +25,7 @@ redis-py is constructed with decode_responses=False. All decoding and escaping h
 
 Layout
 pyproject.toml
-src/redis_kernel/
+src/noteredis/
   __init__.py
   __main__.py        # ipykernel_launcher entry point
   kernel.py          # Kernel subclass: do_execute/do_complete/do_inspect/do_is_complete
@@ -46,7 +46,7 @@ formatter.py and client.py must stay importable without ipykernel.
 Commands
 bash
 uv sync                                   # or: pip install -e '.[dev]'
-jupyter kernelspec install --user src/redis_kernel/kernelspec --name redis
+jupyter kernelspec install --user src/noteredis/kernelspec --name redis
 pytest tests/test_formatter.py            # fast, no server
 docker run -d -p 6379:6379 redis:8
 pytest                                    # full suite
@@ -123,7 +123,7 @@ Renderers so far: HGETALL, CONFIG GET, XINFO STREAM, XRANGE/XREVRANGE, INFO, JSO
 
 Installing the kernelspec
 
-redis_kernel/kernelspec/kernel.json is a template, not an installable spec: nothing knows the interpreter path until install time. Its argv[0] is the placeholder PYTHON-SET-BY-redis-kernel-install, and install.py replaces it with sys.executable. That is the only supported route: redis-kernel-install --user, or python -m redis_kernel.install.
+noteredis/kernelspec/kernel.json is a template, not an installable spec: nothing knows the interpreter path until install time. Its argv[0] is the placeholder PYTHON-SET-BY-noteredis-install, and install.py replaces it with sys.executable. That is the only supported route: noteredis-install --user, or python -m noteredis.install.
 
 The wheel intentionally has no shared-data entry, so pip install registers nothing. Do not add one back, and do not tell people to run jupyter kernelspec install on the packaged directory -- both paths install a spec naming an interpreter nobody chose. The placeholder makes that fail loudly rather than working in one environment and breaking in the next; kernel_json() also refuses to run if the template stops carrying it.
 

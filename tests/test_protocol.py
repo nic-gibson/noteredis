@@ -28,8 +28,8 @@ pytest.importorskip("jupyter_kernel_test")
 
 import jupyter_kernel_test
 
-from redis_kernel.client import default_url
-from redis_kernel.install import KERNEL_NAME, install
+from noteredis.client import default_url
+from noteredis.install import KERNEL_NAME, install
 
 # --------------------------------------------------------------------------- #
 # Is there a server, and can we install a spec to talk to it?
@@ -63,7 +63,7 @@ if not _server_is_up(REDIS_URL):
 
 # Install into a temp directory and point Jupyter at it. This has to happen at
 # import time: jupyter_kernel_test looks the spec up in setUpClass.
-_SPEC_HOME = tempfile.mkdtemp(prefix="redis-kernel-spec-")
+_SPEC_HOME = tempfile.mkdtemp(prefix="noteredis-spec-")
 os.environ["JUPYTER_PATH"] = _SPEC_HOME
 os.environ["JUPYTER_DATA_DIR"] = _SPEC_HOME
 #: A "user" install, but JUPYTER_DATA_DIR above has redirected what that means.

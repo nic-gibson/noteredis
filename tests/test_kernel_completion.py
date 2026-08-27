@@ -12,8 +12,8 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.commands import KeySpec
-from redis_kernel.kernel import RedisKernel
+from noteredis.commands import KeySpec
+from noteredis.kernel import RedisKernel
 from test_completion import FakeServer, _session, _table
 
 

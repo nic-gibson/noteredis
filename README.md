@@ -22,7 +22,7 @@ From a checkout:
 
 ```bash
 pip install -e '.[dev]'      # or: uv sync
-redis-kernel-install --user  # or: python -m redis_kernel.install --user
+noteredis-install --user     # or: python -m noteredis.install --user
 ```
 
 Check it took:
@@ -44,7 +44,7 @@ the spec inside the package is a template, and the installer is what writes a
 real one with `sys.executable` in its `argv`. Shipping a spec that said `python`
 would leave it resolved against whatever `PATH` the Jupyter *server* has: right
 when the server and the kernel share an environment, and a puzzling
-`No module named redis_kernel` when they don't. Installing the template directly
+`No module named noteredis` when they don't. Installing the template directly
 fails immediately instead, and says what to run.
 
 ## Connecting

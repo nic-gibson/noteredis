@@ -11,7 +11,7 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.render import RENDERERS, render
+from noteredis.render import RENDERERS, render
 
 FLAT = [b"a", b"1", b"b", b"2"]
 NESTED = [[b"a", b"1"], [b"b", b"2"]]

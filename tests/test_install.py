@@ -14,7 +14,7 @@ from typing import Any
 
 import pytest
 
-from redis_kernel.install import KERNEL_NAME, PLACEHOLDER, SPEC_DIR, install, kernel_json, main
+from noteredis.install import KERNEL_NAME, PLACEHOLDER, SPEC_DIR, install, kernel_json, main
 
 PROJECT = Path(__file__).resolve().parents[1]
 
@@ -46,7 +46,7 @@ def test_the_template_carries_the_placeholder() -> None:
     """
     template = json.loads((SPEC_DIR / "kernel.json").read_text())
     assert template["argv"][0] == PLACEHOLDER
-    assert template["argv"][1:3] == ["-m", "redis_kernel"]
+    assert template["argv"][1:3] == ["-m", "noteredis"]
 
 
 def test_the_wheel_ships_no_kernelspec_data() -> None:
@@ -56,7 +56,7 @@ def test_the_wheel_ships_no_kernelspec_data() -> None:
 
 
 def test_the_install_entry_point_is_declared() -> None:
-    assert manifest()["project"]["scripts"] == {"redis-kernel-install": "redis_kernel.install:main"}
+    assert manifest()["project"]["scripts"] == {"noteredis-install": "noteredis.install:main"}
 
 
 # --------------------------------------------------------------------------- #
@@ -87,8 +87,8 @@ def test_kernel_json_keeps_the_rest_of_the_spec() -> None:
 
 def test_a_changed_template_is_refused(monkeypatch: Any, tmp_path: Path) -> None:
     """If someone puts "python" back, say so rather than shipping it."""
-    (tmp_path / "kernel.json").write_text(json.dumps({"argv": ["python", "-m", "redis_kernel"]}))
-    monkeypatch.setattr("redis_kernel.install.SPEC_DIR", tmp_path)
+    (tmp_path / "kernel.json").write_text(json.dumps({"argv": ["python", "-m", "noteredis"]}))
+    monkeypatch.setattr("noteredis.install.SPEC_DIR", tmp_path)
     with pytest.raises(RuntimeError, match="expected"):
         kernel_json()
 
