@@ -119,7 +119,7 @@ Rich renderers, starting with HGETALL, XRANGE, and INFO.
 
 All of it is done. (Streaming was step 5 and has been dropped; see above.)
 
-Renderers so far: HGETALL, CONFIG GET, XINFO STREAM, XRANGE/XREVRANGE, INFO, JSON.GET as application/json, FT.SEARCH/FT.AGGREGATE, MEMORY STATS, BF.INFO/CF.INFO, the WITHSCORES/WITHVALUES sorted-set and hash commands (ZRANGE and friends, ZPOPMIN/ZPOPMAX, HRANDFIELD), XINFO GROUPS/CONSUMERS, SLOWLOG GET, LATENCY HISTORY/LATENCY LATEST, CLIENT INFO/CLIENT LIST, and TS.RANGE/TS.REVRANGE. Toggled with %config render rich|plain, or %render for one cell. Candidates not yet written: TS.MRANGE/TS.MREVRANGE (per-series wrapping needs its own renderer). Charts, where they make sense, are still unexplored — everything so far is a table.
+Renderers so far: HGETALL, CONFIG GET, XINFO STREAM, XRANGE/XREVRANGE, INFO, JSON.GET as application/json, FT.SEARCH/FT.AGGREGATE/FT.INFO, MEMORY STATS, BF.INFO/CF.INFO, the WITHSCORES/WITHVALUES sorted-set and hash commands (ZRANGE and friends, ZPOPMIN/ZPOPMAX, HRANDFIELD), XINFO GROUPS/CONSUMERS, SLOWLOG GET, LATENCY HISTORY/LATENCY LATEST, CLIENT INFO/CLIENT LIST, and TS.RANGE/TS.REVRANGE. Toggled with %config render rich|plain, or %render for one cell. Candidates not yet written: TS.MRANGE/TS.MREVRANGE (per-series wrapping needs its own renderer). Charts, where they make sense, are still unexplored — everything so far is a table.
 
 Installing the kernelspec
 
