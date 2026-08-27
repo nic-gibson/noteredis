@@ -69,6 +69,7 @@ def _keys(args: list[str]) -> list[str]:
 # for them to decorate with.
 from . import (  # noqa: E402,F401  (side effects)
     client,
+    ft_info,
     info,
     json_reply,
     latency,

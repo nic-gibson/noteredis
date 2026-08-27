@@ -223,6 +223,7 @@ Some replies get a richer representation added alongside the text:
 | `JSON.GET`, `JSON.MGET`, `JSON.ARRPOP` | `application/json`, so JupyterLab shows a collapsible tree |
 | `FT.SEARCH` | one row per document, one column per field (`WITHSCORES`/`WITHPAYLOADS` add columns) |
 | `FT.AGGREGATE` | one row per group, one column per field |
+| `FT.INFO` | property/value table, plus a field table on RESP3 |
 | `MEMORY STATS`, `BF.INFO`, `CF.INFO` | metric/value table |
 | `ZRANGE` and friends, `ZPOPMIN`/`ZPOPMAX`, `HRANDFIELD` | member/score (or field/value) table, when the reply carries one |
 | `XINFO GROUPS`, `XINFO CONSUMERS` | one row per group/consumer, one column per property |
