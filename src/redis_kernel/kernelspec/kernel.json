@@ -1,6 +1,6 @@
 {
   "argv": [
-    "python",
+    "PYTHON-SET-BY-redis-kernel-install",
     "-m",
     "redis_kernel",
     "-f",

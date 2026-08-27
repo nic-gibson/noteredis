@@ -123,7 +123,9 @@ Renderers so far: HGETALL, CONFIG GET, XINFO STREAM, XRANGE/XREVRANGE, INFO, and
 
 Installing the kernelspec
 
-The packaged kernelspec/kernel.json cannot name an interpreter -- nothing knows the path until install time -- so install.py writes one with sys.executable and that is the supported route: redis-kernel-install --user, or python -m redis_kernel.install. Do not tell people to run jupyter kernelspec install on the packaged directory; it leaves a bare "python" in argv, resolved against the Jupyter server's PATH.
+redis_kernel/kernelspec/kernel.json is a template, not an installable spec: nothing knows the interpreter path until install time. Its argv[0] is the placeholder PYTHON-SET-BY-redis-kernel-install, and install.py replaces it with sys.executable. That is the only supported route: redis-kernel-install --user, or python -m redis_kernel.install.
+
+The wheel intentionally has no shared-data entry, so pip install registers nothing. Do not add one back, and do not tell people to run jupyter kernelspec install on the packaged directory -- both paths install a spec naming an interpreter nobody chose. The placeholder makes that fail loudly rather than working in one environment and breaking in the next; kernel_json() also refuses to run if the template stops carrying it.
 
 CI
 

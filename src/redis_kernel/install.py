@@ -2,14 +2,16 @@
 
     python -m redis_kernel.install --user
 
-The static ``kernelspec/kernel.json`` in this package cannot name an
-interpreter: nothing knows the path until install time. It says ``python``,
-which is resolved from whatever ``PATH`` the Jupyter *server* happens to have --
-fine when the server and the kernel live in one environment, and a confusing
-``No module named redis_kernel`` when they do not.
+``kernelspec/kernel.json`` in this package is a *template*, not an installable
+spec: nothing knows the interpreter path until install time. Its ``argv[0]`` is
+:data:`PLACEHOLDER`, which fails immediately and says why if the directory is
+ever installed directly -- better than the ``python`` it used to hold, which
+resolved against whatever ``PATH`` the Jupyter *server* happened to have and so
+worked in a single-environment setup and failed with a puzzling
+``No module named redis_kernel`` anywhere else.
 
-This writes a spec with :data:`sys.executable` instead, so the kernel starts
-under the interpreter it was installed into whatever launches it.
+The wheel deliberately ships no ``share/jupyter/kernels`` data for the same
+reason, so installing the kernel is this one explicit step.
 """
 
 from __future__ import annotations
@@ -23,16 +25,23 @@ from pathlib import Path
 
 from jupyter_client.kernelspec import KernelSpecManager
 
-__all__ = ["KERNEL_NAME", "install", "kernel_json", "main"]
+__all__ = ["KERNEL_NAME", "PLACEHOLDER", "install", "kernel_json", "main"]
 
 KERNEL_NAME = "redis"
 SPEC_DIR = Path(__file__).parent / "kernelspec"
+
+#: What the template carries in ``argv[0]`` until this module replaces it.
+PLACEHOLDER = "PYTHON-SET-BY-redis-kernel-install"
 
 
 def kernel_json(executable: str | None = None) -> dict[str, object]:
     """The kernelspec, with ``argv[0]`` pinned to a real interpreter path."""
     spec = json.loads((SPEC_DIR / "kernel.json").read_text())
     argv = list(spec["argv"])
+    if argv[0] != PLACEHOLDER:
+        # The template changed without this module keeping up. Refusing beats
+        # writing a spec that names an interpreter nobody chose.
+        raise RuntimeError(f"kernelspec template argv[0] is {argv[0]!r}, expected {PLACEHOLDER!r}")
     argv[0] = executable or sys.executable
     spec["argv"] = argv
     return dict(spec)

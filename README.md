@@ -38,12 +38,14 @@ Use `--sys-prefix` instead of `--user` to install into the current environment
 (handy in a container or a shared checkout), or `--prefix DIR` for somewhere
 specific.
 
-**Why the separate step.** The installer writes a kernelspec whose `argv` names
-the interpreter you ran it with. A plain `jupyter kernelspec install` of the
-packaged spec would leave `python` in there, resolved from whatever `PATH` the
-Jupyter *server* has — which works when the server and the kernel share an
-environment, and produces a puzzling `No module named redis_kernel` when they
-don't.
+**Why the separate step.** Installing the package registers no kernel by
+itself — deliberately. The interpreter path isn't known until install time, so
+the spec inside the package is a template, and the installer is what writes a
+real one with `sys.executable` in its `argv`. Shipping a spec that said `python`
+would leave it resolved against whatever `PATH` the Jupyter *server* has: right
+when the server and the kernel share an environment, and a puzzling
+`No module named redis_kernel` when they don't. Installing the template directly
+fails immediately instead, and says what to run.
 
 ## Connecting
 

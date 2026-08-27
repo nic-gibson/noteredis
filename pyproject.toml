@@ -40,8 +40,12 @@ dev = [
 [tool.hatch.build.targets.wheel]
 packages = ["src/redis_kernel"]
 
-[tool.hatch.build.targets.wheel.shared-data]
-"src/redis_kernel/kernelspec" = "share/jupyter/kernels/redis"
+# Deliberately no shared-data entry installing the kernelspec into
+# share/jupyter/kernels. Copying it there verbatim would register a kernel whose
+# argv says "python", resolved against whatever PATH the Jupyter server has --
+# right when the server and the kernel share an environment, and a confusing
+# "No module named redis_kernel" when they do not. redis_kernel/kernelspec is a
+# template; redis_kernel.install writes a real spec with sys.executable in it.
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
