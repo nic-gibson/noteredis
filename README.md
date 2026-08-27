@@ -1,4 +1,4 @@
-# Jupyter Redis
+# NoteRedis
 
 A Redis client as a Jupyter kernel.
 
@@ -221,6 +221,8 @@ Some replies get a richer representation added alongside the text:
 | `XRANGE`, `XREVRANGE` | one row per entry, one column per field |
 | `INFO` | a table per section |
 | `JSON.GET`, `JSON.MGET`, `JSON.ARRPOP` | `application/json`, so JupyterLab shows a collapsible tree |
+| `FT.SEARCH` | one row per document, one column per field (`WITHSCORES`/`WITHPAYLOADS` add columns) |
+| `FT.AGGREGATE` | one row per group, one column per field |
 
 `text/plain` is always the exact `redis-cli` text, in every mode — a renderer
 only ever *adds* to the bundle. A renderer handed a reply shape it doesn't

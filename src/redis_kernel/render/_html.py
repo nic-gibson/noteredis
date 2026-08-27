@@ -18,7 +18,7 @@ from typing import Any
 
 from ..formatter import Double, Status, Verbatim, format_reply, quote_bytes
 
-__all__ = ["cell_text", "escape", "table"]
+__all__ = ["cell_text", "escape", "table", "union_labels"]
 
 
 def cell_text(value: Any) -> str:
@@ -56,6 +56,28 @@ def cell_text(value: Any) -> str:
     # An aggregate or something unexpected: fall back to the text redis-cli
     # would have printed rather than inventing a second rendering for it.
     return format_reply(value).rstrip("\n")
+
+
+def union_labels(
+    pairs_per_row: Iterable[Sequence[tuple[Any, Any]]], max_columns: int
+) -> list[str] | None:
+    """Field names across every row, in first-seen order, as display labels.
+
+    The shared column strategy for a table with one row per hit and no fixed
+    schema -- ``XRANGE`` entries, ``FT.SEARCH`` documents, ``FT.AGGREGATE``
+    groups. ``None`` once the union would need more than ``max_columns``
+    columns: past that point the table stops being easier to read than the
+    plain text.
+    """
+    labels: list[str] = []
+    for pairs in pairs_per_row:
+        for name, _ in pairs:
+            label = cell_text(name)
+            if label not in labels:
+                if len(labels) >= max_columns:
+                    return None
+                labels.append(label)
+    return labels
 
 
 def table(headers: Sequence[str], rows: Iterable[Sequence[Any]], caption: str | None = None) -> str:
