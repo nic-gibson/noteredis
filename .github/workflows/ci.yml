@@ -1,0 +1,83 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: lint and types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e '.[dev]'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: mypy src
+
+  test:
+    name: tests (python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Oldest and newest supported, plus 3.12: from 3.13 the compiler strips
+        # docstring indentation, which %help has to cope with either way.
+        python-version: ["3.10", "3.12", "3.13"]
+
+    services:
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      REDIS_URL: redis://localhost:6379/0
+      # The protocol tests skip themselves when no server answers, which would
+      # let a broken service container pass as green. This makes them fail.
+      REDIS_KERNEL_REQUIRE_SERVER: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e '.[dev]'
+      - run: pytest -v
+
+  # The formatter corpus is captured from the real redis-cli and committed. It
+  # cannot be regenerated in CI as a freshness check: the file records the
+  # exact redis-cli version it came from, so any other version produces a
+  # different file for reasons that have nothing to do with correctness. What
+  # is checkable is that the committed corpus is intact and still covers the
+  # rules -- tests/test_formatter.py does that, and this makes it explicit.
+  corpus:
+    name: captured corpus
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - run: pip install -e '.[dev]'
+      - run: pytest tests/test_formatter.py -v

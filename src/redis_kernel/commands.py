@@ -334,6 +334,6 @@ def _text(value: Any) -> str:
 
 def _int(value: Any) -> int:
     try:
-        return int(value)  # type: ignore[arg-type]
+        return int(value)
     except (TypeError, ValueError):
         return 0

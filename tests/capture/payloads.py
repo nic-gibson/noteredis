@@ -158,6 +158,44 @@ add(
 add("array_of_map_with_array", b"*1\r\n%1\r\n$4\r\nkeys\r\n*2\r\n$1\r\na\r\n$1\r\nb\r\n")
 
 # --------------------------------------------------------------------------- #
+# Where a map value sits: inline after "=>", or on the line below it
+#
+# ``cliIsMultilineValueTTY`` is recursive, and the boundary is not where you
+# would guess: a one-element aggregate defers to what it holds, so
+# ``1# "a" => 1) "x"`` stays inline while two elements move down a line. These
+# pin every branch of that decision.
+# --------------------------------------------------------------------------- #
+
+_X = b"$1\r\nx\r\n"
+
+add("mapval_array_one_bulk", b"%1\r\n$1\r\na\r\n*1\r\n" + _X)
+add("mapval_array_two_bulk", b"%1\r\n$1\r\na\r\n*2\r\n" + _X + _X)
+add("mapval_array_one_holding_two", b"%1\r\n$1\r\na\r\n*1\r\n*2\r\n" + _X + _X)
+add("mapval_array_one_holding_one", b"%1\r\n$1\r\na\r\n*1\r\n*1\r\n" + _X)
+add("mapval_map_one_pair", b"%1\r\n$1\r\na\r\n%1\r\n$1\r\nk\r\n" + _X)
+add(
+    "mapval_map_two_pairs",
+    b"%1\r\n$1\r\na\r\n%2\r\n$1\r\nk\r\n" + _X + b"$1\r\nj\r\n" + _X,
+)
+add("mapval_map_one_pair_holding_two", b"%1\r\n$1\r\na\r\n%1\r\n$1\r\nk\r\n*2\r\n" + _X + _X)
+add("mapval_set_one_member", b"%1\r\n$1\r\na\r\n~1\r\n" + _X)
+add("mapval_set_two_members", b"%1\r\n$1\r\na\r\n~2\r\n" + _X + _X)
+
+# A verbatim value is inline whatever it contains -- its own newlines then run
+# flush to the left margin, which is redis-cli's behaviour, not an accident.
+_VERBATIM_MULTILINE = b"=21\r\ntxt:line one\nline two\r\n"
+add(
+    "mapval_verbatim_then_entry",
+    b"%2\r\n$1\r\na\r\n" + _VERBATIM_MULTILINE + b"$1\r\nb\r\n$1\r\nz\r\n",
+)
+add("array_multiline_verbatim_then_entry", b"*2\r\n" + _VERBATIM_MULTILINE + b"$1\r\nz\r\n")
+add("set_multiline_verbatim_then_entry", b"~2\r\n" + _VERBATIM_MULTILINE + b"$1\r\nz\r\n")
+add(
+    "mapval_map_holding_multiline_verbatim",
+    b"%1\r\n$1\r\na\r\n%1\r\n$1\r\nb\r\n" + _VERBATIM_MULTILINE,
+)
+
+# --------------------------------------------------------------------------- #
 # RESP3 sets
 # --------------------------------------------------------------------------- #
 

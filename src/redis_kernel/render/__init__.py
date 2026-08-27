@@ -62,3 +62,9 @@ def _keys(args: list[str]) -> list[str]:
     if len(args) > 1:
         return [f"{command} {args[1].upper()}", command]
     return [command]
+
+
+# Registration happens on import, and these are imported for that side effect
+# alone -- hence the placement at the bottom, where ``renderer`` already exists
+# for them to decorate with.
+from . import info, json_reply, pairs, streams  # noqa: E402,F401  (side effects)

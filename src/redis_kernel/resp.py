@@ -26,6 +26,8 @@ them exactly as redis-cli does. No kernel imports.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from contextlib import suppress
 from typing import Any
 
 from redis._parsers.resp2 import _RESP2Parser
@@ -53,6 +55,10 @@ SERVER_CLOSED = "Connection closed by server."
 class _FaithfulMixin:
     """Shared error handling for both protocol versions."""
 
+    #: Supplied by redis-py's parser base, which this mixin is always combined
+    #: with. Declared so the call below type-checks without reaching into it.
+    parse_error: Callable[[str], BaseException]
+
     def _faithful_error(self, text: str) -> BaseException:
         """Build redis-py's exception for ``text`` but keep the full original.
 
@@ -61,21 +67,19 @@ class _FaithfulMixin:
         ``BusyLoadingError`` retries keep working. We only add the raw text
         back, since ``parse_error`` strips the error code.
         """
-        error = self.parse_error(text)  # type: ignore[attr-defined]
-        try:
+        # parse_error is untyped upstream; the annotation pins what we rely on.
+        error: BaseException = self.parse_error(text)
+        # Exotic exception types can refuse attributes; the text is a bonus.
+        with suppress(AttributeError):
             setattr(error, RAW_ERROR_ATTR, text)
-        except AttributeError:  # pragma: no cover - exotic exception types
-            pass
         return error
 
 
 class FaithfulRESP2Parser(_FaithfulMixin, _RESP2Parser):
     """RESP2, distinguishing simple strings from bulk strings."""
 
-    def _read_response(  # type: ignore[override]
-        self, disable_decoding: bool = False, timeout: Any = SENTINEL
-    ) -> Any:
-        raw = self._buffer.readline(timeout=timeout)  # type: ignore[attr-defined]
+    def _read_response(self, disable_decoding: bool = False, timeout: Any = SENTINEL) -> Any:
+        raw = self._buffer.readline(timeout=timeout)  # type: ignore[union-attr]
         if not raw:
             raise RedisConnectionError(SERVER_CLOSED)
 
@@ -95,7 +99,7 @@ class FaithfulRESP2Parser(_FaithfulMixin, _RESP2Parser):
         if byte == b"$":
             if response == b"-1":
                 return None
-            return bytes(self._buffer.read(int(response), timeout=timeout))  # type: ignore[attr-defined]
+            return bytes(self._buffer.read(int(response), timeout=timeout))  # type: ignore[union-attr]
         if byte == b"*":
             if response == b"-1":
                 return None
@@ -109,18 +113,18 @@ class FaithfulRESP2Parser(_FaithfulMixin, _RESP2Parser):
 class FaithfulRESP3Parser(_FaithfulMixin, _RESP3Parser):
     """RESP3, preserving set order, double digits, verbatim hints and big numbers."""
 
-    def _read_response(  # type: ignore[override]
+    def _read_response(
         self,
         disable_decoding: bool = False,
         push_request: bool = False,
         timeout: Any = SENTINEL,
     ) -> Any:
-        raw = self._buffer.readline(timeout=timeout)  # type: ignore[attr-defined]
+        raw = self._buffer.readline(timeout=timeout)  # type: ignore[union-attr]
         if not raw:
             raise RedisConnectionError(SERVER_CLOSED)
 
         byte, response = raw[:1], raw[1:]
-        read = self._buffer.read  # type: ignore[attr-defined]
+        read = self._buffer.read  # type: ignore[union-attr]
 
         def recurse() -> Any:
             return self._read_response(
@@ -176,7 +180,7 @@ class FaithfulRESP3Parser(_FaithfulMixin, _RESP3Parser):
             return recurse()
         if byte == b">":
             frame = Push([recurse() for _ in range(int(response))])
-            handled = self.handle_push_response(frame)  # type: ignore[attr-defined]
+            handled = self.handle_push_response(frame)  # type: ignore[no-untyped-call]
             if push_request:
                 return handled if handled is not None else frame
             # Not a push request: the caller is still waiting for its reply.

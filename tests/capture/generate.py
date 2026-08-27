@@ -27,7 +27,7 @@ import sys
 import threading
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
-from payloads import PAYLOADS  # noqa: E402
+from payloads import PAYLOADS
 
 CORPUS = pathlib.Path(__file__).resolve().parents[1] / "captured" / "redis_cli_replies.json"
 

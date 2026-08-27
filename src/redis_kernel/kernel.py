@@ -8,15 +8,22 @@ only module allowed to import the kernel machinery -- ``formatter``, ``client``,
 
 from __future__ import annotations
 
-import threading
 from typing import Any
 
 from ipykernel.kernelbase import Kernel, StdinNotImplementedError
 from redis.exceptions import ConnectionError as RedisConnectionError
-from redis.exceptions import RedisError, TimeoutError as RedisTimeoutError
+from redis.exceptions import RedisError
+from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from . import __version__
-from .client import NotConnected, RedisSession, is_blocking, split_cell, split_command
+from .client import (
+    RICH,
+    NotConnected,
+    RedisSession,
+    is_blocking,
+    split_cell,
+    split_command,
+)
 from .commands import CommandTable, load_command_table
 from .formatter import format_error, format_reply
 from .magics import MagicError, handle_magic, is_magic, magic_names
@@ -33,7 +40,9 @@ class RedisKernel(Kernel):
 
     language = "redis"
     language_version = "8"
-    language_info = {
+    # Not ClassVar, though ruff would prefer it: ipykernel declares both of
+    # these as instance attributes, and a ClassVar here contradicts the base.
+    language_info = {  # noqa: RUF012
         "name": "redis",
         "mimetype": "text/x-redis",
         "file_extension": ".redis",
@@ -41,7 +50,7 @@ class RedisKernel(Kernel):
         "codemirror_mode": "text",
     }
 
-    help_links = [
+    help_links = [  # noqa: RUF012
         {"text": "Redis commands", "url": "https://redis.io/commands/"},
     ]
 
@@ -52,8 +61,6 @@ class RedisKernel(Kernel):
         #: and it is a typed trait, so assigning over it raises.
         self.redis = RedisSession()
         self._table: CommandTable | None = None
-        # Set while a streaming command runs, so an interrupt can stop it.
-        self._interrupted = threading.Event()
 
     # -- banner ----------------------------------------------------------- #
 
@@ -85,8 +92,15 @@ class RedisKernel(Kernel):
         Redis error reply is therefore still ``status: ok``; ``status: error``
         is reserved for the kernel itself failing.
         """
-        self._interrupted.clear()
+        try:
+            return self._execute_cell(code, silent)
+        finally:
+            # A %render in this cell applied to this cell. Clearing here, rather
+            # than at the top of the next one, covers the paths that return
+            # early as well.
+            self.redis.render_override = None
 
+    def _execute_cell(self, code: str, silent: bool) -> dict[str, Any]:
         for command in split_cell(code):
             if not command.args:
                 # Only unbalanced quotes reach here; split_cell kept the line.
@@ -101,12 +115,13 @@ class RedisKernel(Kernel):
                 continue
 
             if is_blocking(command.args):
-                # Streaming these is the next piece of work (see README). Until
-                # then, refuse rather than wedge the shell channel forever.
+                # Deliberately out of scope: this kernel is for runbooks, not
+                # for watching a live feed. Refusing keeps the shell channel
+                # answering; running it would wedge the kernel until restart.
                 self._emit(
                     silent,
-                    f"(error) {command.name} streams indefinitely and is not "
-                    "supported by this build yet\n",
+                    f"(error) {command.name} never returns on its own and is not "
+                    "supported by this kernel. Use redis-cli to watch a live feed\n",
                 )
                 continue
 
@@ -169,13 +184,18 @@ class RedisKernel(Kernel):
         ``text/plain`` is always the exact redis-cli rendering; renderers only
         ever add to the bundle. A renderer that raises is dropped rather than
         allowed to lose the user's output.
+
+        In ``plain`` mode the renderers are not consulted at all -- not merely
+        hidden -- so nothing but the redis-cli text is saved into the notebook.
         """
         plain = format_reply(reply)
         bundle: dict[str, Any] = {"text/plain": plain}
-        try:
-            extra = render(args, reply)
-        except Exception:
-            extra = None
+        extra = None
+        if self.redis.render_mode_now == RICH:
+            try:
+                extra = render(args, reply)
+            except Exception:
+                extra = None
         if extra:
             bundle.update(extra)
 
@@ -314,13 +334,17 @@ class RedisKernel(Kernel):
 
     # -- interrupt / shutdown --------------------------------------------- #
 
-    def do_interrupt(self) -> dict[str, Any]:  # pragma: no cover - needs a live loop
-        """Stop a streaming command. Also reachable via SIGINT."""
-        self._interrupted.set()
+    def do_interrupt(self) -> dict[str, Any]:
+        """Acknowledge an interrupt. There is never a loop of ours to stop.
+
+        Streaming commands are refused rather than run (see ``do_execute``), so
+        the only thing that can be in flight is a single command redis-py is
+        waiting on -- and that ends with its own timeout or the socket, not
+        with a flag we could set here.
+        """
         return {"status": "ok"}
 
     def do_shutdown(self, restart: bool) -> dict[str, Any]:
-        self._interrupted.set()
         self.redis.close()
         self._table = None
         return {"status": "ok", "restart": restart}

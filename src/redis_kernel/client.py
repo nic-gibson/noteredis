@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import os
 import shlex
+from contextlib import suppress
 from dataclasses import dataclass, field, replace
 from typing import Any
 
@@ -26,6 +27,9 @@ from .resp import parser_for_protocol
 
 __all__ = [
     "BLOCKING_COMMANDS",
+    "PLAIN",
+    "RENDER_MODES",
+    "RICH",
     "SCAN_COUNT",
     "SCAN_MAX_CALLS",
     "SCAN_MAX_MATCHES",
@@ -50,9 +54,11 @@ class NotConnected(RuntimeError):
 
 DEFAULT_URL = "redis://localhost:6379/0"
 
-#: Commands that may never return on their own, so the kernel has to run them
-#: on a worker thread and stream their output. ``BLPOP`` and friends only block
-#: when their timeout argument is ``0``; :func:`is_blocking` checks that.
+#: Commands that never return on their own. Streaming them is out of scope, so
+#: the kernel refuses them rather than wedging the shell channel until a
+#: restart. ``BLPOP`` and friends only block forever when their timeout
+#: argument is ``0``; :func:`is_blocking` checks that, and a command with a real
+#: timeout is left to run and return on its own.
 BLOCKING_COMMANDS = frozenset(
     {
         "SUBSCRIBE",
@@ -93,6 +99,13 @@ SCAN_MAX_MATCHES = 50
 #: Characters ``stringmatchlen`` treats as pattern syntax, and which therefore
 #: have to be escaped when a typed prefix is spliced into a ``MATCH`` pattern.
 GLOB_SPECIALS = "*?[]\\"
+
+#: Rendering modes. ``rich`` adds representations on top of the redis-cli text;
+#: ``plain`` sends the text alone. Named as modes rather than a boolean so
+#: redis-cli's own ``--raw`` output could join them later without a rename.
+RICH = "rich"
+PLAIN = "plain"
+RENDER_MODES = (RICH, PLAIN)
 
 
 def default_url() -> str:
@@ -191,7 +204,13 @@ def split_cell(code: str) -> list[CommandLine]:
 
 
 def is_blocking(args: list[str]) -> bool:
-    """Would this command block the shell channel if run inline?"""
+    """Would this command block the shell channel forever if run inline?
+
+    True only for commands with no way back: the pub/sub and replication
+    streams, and the blocking commands given a zero timeout. ``BLPOP key 5``
+    returns on its own, so it is allowed through and runs exactly as it would
+    in redis-cli.
+    """
     if not args:
         return False
     name = args[0].upper()
@@ -442,6 +461,13 @@ class RedisSession:
     #: behaves like redis-cli with no arguments; turn it off with ``%config``
     #: in a runbook that must only ever talk to the server it names.
     autoconnect: bool = True
+    #: ``"rich"`` adds ``text/html`` and friends to a reply's mimebundle;
+    #: ``"plain"`` sends only the redis-cli text. Set with ``%config render``.
+    #: Rich is the default because it is the reason for having a kernel.
+    render_mode: str = RICH
+    #: Set by ``%render`` for the remainder of one cell and cleared by the
+    #: kernel when the cell ends, so a cell cannot change how later cells look.
+    render_override: str | None = field(default=None, repr=False)
 
     _client: Any = field(default=None, repr=False)
     _info: ServerInfo | None = field(default=None, repr=False)
@@ -451,6 +477,15 @@ class RedisSession:
     @property
     def connected(self) -> bool:
         return self._client is not None
+
+    @property
+    def render_mode_now(self) -> str:
+        """The mode this reply should be rendered in.
+
+        A ``%render`` earlier in the same cell wins; otherwise the session
+        setting stands.
+        """
+        return self.render_override or self.render_mode
 
     @property
     def url(self) -> str:
@@ -494,9 +529,7 @@ class RedisSession:
         pool = redis.ConnectionPool(**settings.pool_kwargs())
         # single_connection_client pins one socket, so SELECT and MULTI stick.
         client = redis.Redis(connection_pool=pool, single_connection_client=True)
-        # No response callbacks: they rewrite replies (SET -> True,
-        # HGETALL -> dict) and we need what the server actually sent.
-        client.response_callbacks = {}
+        _silence_callbacks(client)
 
         if self._is_cluster(client):
             client.close()
@@ -505,7 +538,7 @@ class RedisSession:
                 port=settings.port,
                 **settings.cluster_kwargs(),
             )
-            cluster.response_callbacks = {}
+            _silence_callbacks(cluster)
             return cluster
         return client
 
@@ -524,10 +557,8 @@ class RedisSession:
 
     def close(self) -> None:
         if self._client is not None:
-            try:
-                self._client.close()
-            except Exception:
-                pass  # already gone; nothing useful to report
+            with suppress(Exception):
+                self._client.close()  # already gone; nothing useful to report
             self._client = None
         self._info = None
 
@@ -556,19 +587,15 @@ class RedisSession:
         """Update session state after a command that succeeded."""
         name = args[0].upper() if args else ""
         if name == "SELECT" and len(args) > 1:
-            try:
+            with suppress(ValueError):
                 self.db = int(args[1])
-            except ValueError:
-                pass
         elif name == "MULTI":
             self.in_transaction = True
         elif name in ("EXEC", "DISCARD", "RESET"):
             self.in_transaction = False
         elif name == "HELLO" and len(args) > 1:
-            try:
+            with suppress(ValueError):
                 self.protocol = int(args[1])
-            except ValueError:
-                pass
         elif name == "SWAPDB":
             pass  # does not change which db we are on
 
@@ -687,6 +714,33 @@ class RedisSession:
 
         self._info = info
         return info
+
+
+def _silence_callbacks(client: Any) -> None:
+    """Stop redis-py rewriting replies, so the formatter sees what the server sent.
+
+    Response callbacks turn ``SET`` into ``True`` and ``HGETALL`` into a dict,
+    which destroys the shapes this kernel exists to render.
+
+    A standalone client keeps them in one dictionary. A cluster builds a
+    ``Redis`` per node instead, and assigning to the cluster object itself would
+    only create an attribute nothing reads -- so each node's client is cleared.
+    A node discovered *after* this point keeps redis-py's defaults, the same
+    best-effort caveat that applies to the parser (see
+    :meth:`ConnectionSettings.cluster_kwargs`).
+    """
+    callbacks = getattr(client, "response_callbacks", None)
+    if callbacks is not None:
+        callbacks.clear()
+    get_nodes = getattr(client, "get_nodes", None)
+    if get_nodes is None:
+        return
+    for node in get_nodes():
+        node_callbacks = getattr(
+            getattr(node, "redis_connection", None), "response_callbacks", None
+        )
+        if node_callbacks is not None:
+            node_callbacks.clear()
 
 
 def _cursor_text(value: Any) -> str:

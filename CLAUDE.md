@@ -71,11 +71,13 @@ RESP3: maps (1# "k" => "v"), sets, doubles ((double) 1.5), booleans, big numbers
 
 Every rule above gets a test in test_formatter.py with the expected string copied from a real redis-cli run. Do not hand-write expectations.
 
-Blocking and streaming commands
+Blocking and streaming commands — out of scope
 
-SUBSCRIBE, PSUBSCRIBE, MONITOR, XREAD BLOCK 0, BLPOP, WAIT never return on their own. Run the command on a worker thread and flush iopub stream messages as replies arrive; implement do_interrupt (and a SIGINT path for kernels launched without message-based interrupt) to stop the loop and close the connection cleanly. Never block the shell channel waiting on one of these.
+SUBSCRIBE, PSUBSCRIBE, MONITOR, XREAD BLOCK 0, BLPOP 0, WAIT 0 never return on their own. Streaming them on a worker thread was the original plan; it is now a deliberate non-goal. Pub/sub, MONITOR and stream tailing are not what this kernel is for — a runbook is a sequence of commands with answers, and watching a live feed is what redis-cli is still good at.
 
-This is the main thing that separates a usable kernel from a toy. Treat it as a first-class feature, not a follow-up.
+What is required is that they never wedge the kernel. is_blocking() in client.py detects them, and do_execute refuses them with an (error) line and carries on to the next command. Never block the shell channel waiting on one of these. A blocking command with a non-zero timeout is left alone: it returns on its own, exactly as it would in redis-cli.
+
+Do not add worker threads, an interrupt loop, or a streaming iopub path without agreeing to reverse this decision first.
 
 Session state
 
@@ -111,10 +113,25 @@ formatter.py + its tests. No kernel, no server. Get RESP2 exactly right.
 client.py — connection, session state, %connect/%status.
 kernel.py do_execute for non-blocking commands; kernelspec; install and use it.
 RESP3 in the formatter, with HELLO 3 wired through.
-Streaming/blocking commands and interrupt.
 COMMAND DOCS table → do_complete, do_inspect.
 do_is_complete and MULTI state.
 Rich renderers, starting with HGETALL, XRANGE, and INFO.
+
+All of it is done. (Streaming was step 5 and has been dropped; see above.)
+
+Renderers so far: HGETALL, CONFIG GET, XINFO STREAM, XRANGE/XREVRANGE, INFO, and JSON.GET as application/json. Toggled with %config render rich|plain, or %render for one cell. Candidates not yet written: FT.SEARCH, MEMORY STATS, LATENCY HISTORY, XINFO GROUPS/CONSUMERS. Charts, where they make sense, are still unexplored — everything so far is a table.
+
+Installing the kernelspec
+
+The packaged kernelspec/kernel.json cannot name an interpreter -- nothing knows the path until install time -- so install.py writes one with sys.executable and that is the supported route: redis-kernel-install --user, or python -m redis_kernel.install. Do not tell people to run jupyter kernelspec install on the packaged directory; it leaves a bare "python" in argv, resolved against the Jupyter server's PATH.
+
+CI
+
+.github/workflows/ci.yml: ruff check, ruff format --check and mypy src once, then pytest on 3.10/3.12/3.13 against a redis:8 service container. All three gates pass; keep them passing.
+
+Tests that need a server skip without one, which would let a broken service container report green -- so CI sets REDIS_KERNEL_REQUIRE_SERVER=1, which turns that skip into a failure.
+
+The captured corpus is deliberately not regenerated in CI as a freshness check: it records the exact redis-cli version it came from, so any other version produces a different file for reasons unrelated to correctness.
 References
 Kernel protocol: https://jupyter-client.readthedocs.io/en/stable/messaging.html
 Wrapper kernels: https://jupyter-client.readthedocs.io/en/stable/wrapperkernels.html

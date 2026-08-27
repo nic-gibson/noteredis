@@ -20,8 +20,14 @@ classifiers = [
 ]
 dependencies = [
   "ipykernel>=6.29",
+  "jupyter_client>=8.0",
   "redis>=5.0",
 ]
+
+[project.scripts]
+# Writes a kernelspec pinned to this interpreter; see redis_kernel/install.py
+# for why the packaged kernel.json cannot do that on its own.
+redis-kernel-install = "redis_kernel.install:main"
 
 [project.optional-dependencies]
 dev = [
@@ -63,3 +69,17 @@ files = ["src"]
 [[tool.mypy.overrides]]
 module = ["redis.*", "ipykernel.*", "jupyter_kernel_test.*"]
 ignore_missing_imports = true
+# These packages re-export names without declaring them (StdinNotImplementedError
+# reaches us via ipykernel.kernelbase but is defined in IPython), and importing
+# from the private original instead would be the more fragile choice.
+implicit_reexport = true
+
+# kernel.py subclasses ipykernel's Kernel, which is untyped: its methods are
+# declared as returning Coroutine[Any, Any, Any] even though a wrapper kernel is
+# expected to override them synchronously (the base awaits the result if it is
+# awaitable), and its own helpers carry no annotations. Both error codes below
+# are artefacts of that base class, not of this module -- everything else stays
+# strict, including the same codes everywhere else in the package.
+[[tool.mypy.overrides]]
+module = ["redis_kernel.kernel"]
+disable_error_code = ["override", "no-untyped-call"]

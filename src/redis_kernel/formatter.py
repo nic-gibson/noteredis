@@ -108,7 +108,7 @@ class BigNumber(int):
         return self
 
 
-class RedisSet(list):
+class RedisSet(list[Any]):
     """A RESP3 set (``~``).
 
     A ``list`` rather than a ``set``: replies can contain unhashable members,
@@ -118,7 +118,7 @@ class RedisSet(list):
     __slots__ = ()
 
 
-class RedisMap(dict):
+class RedisMap(dict[Any, Any]):
     """A RESP3 map (``%``).
 
     Subclasses ``dict`` so redis-py can keep doing ``reply.get(b"proto")``,
@@ -146,7 +146,7 @@ class RedisMap(dict):
         super().__init__(self)
 
 
-class Push(list):
+class Push(list[Any]):
     """A RESP3 out-of-band push frame (``>3 message ch1 hello``)."""
 
     __slots__ = ()
@@ -287,17 +287,28 @@ def _unordered_sort_key(value: Any) -> tuple[int, Any]:
 def _is_multiline_value(reply: Any) -> bool:
     """Does this map value start on the line below its ``=>``?
 
-    Mirrors ``cliIsMultilineValueTTY``: non-empty aggregates do, and so does a
-    verbatim string containing a newline. Empty aggregates stay inline as
-    ``(empty array)``, and bulk strings never wrap because their newlines are
-    escaped.
+    Mirrors ``cliIsMultilineValueTTY``, which is recursive, and whose boundary
+    is not where you would guess. An aggregate holding more than one entry goes
+    below; an empty one stays inline as ``(empty array)``; and a *single*-entry
+    one defers to the entry it holds. So ``1# "a" => 1) "x"`` stays on the line
+    while a two-element array moves off it, and a one-pair map inside a map
+    only moves off if its own value would have.
+
+    Everything else is inline, verbatim strings included -- their newlines then
+    run flush to the left margin rather than being indented. That reads oddly
+    but it is what redis-cli does, verified against the binary.
     """
     aggregate = _as_aggregate(reply)
-    if aggregate is not None:
-        return bool(aggregate[1])
-    if isinstance(reply, Verbatim):
-        return b"\n" in reply
-    return False
+    if aggregate is None:
+        return False
+    kind, items = aggregate
+    stride = 2 if kind == "map" else 1
+    count = len(items) // stride
+    if count != 1:
+        return count > 1
+    # One entry: for a map that is the pair's value, matching the C, which
+    # recurses on element[1].
+    return _is_multiline_value(items[stride - 1])
 
 
 # --------------------------------------------------------------------------- #

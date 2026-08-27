@@ -18,7 +18,7 @@ import textwrap
 from collections.abc import Callable
 from dataclasses import replace
 
-from .client import ConnectionSettings, RedisSession, default_settings
+from .client import RENDER_MODES, ConnectionSettings, RedisSession, default_settings
 
 __all__ = [
     "MAGICS",
@@ -270,11 +270,45 @@ def _protocol(session: RedisSession, args: list[str], prompt: Prompt | None) -> 
     return f"RESP{session.protocol}\n"
 
 
-#: Kernel settings ``%config`` can read and write, with why they default as
-#: they do. Deliberately distinct from the ``CONFIG`` command.
-CONFIG_SETTINGS = {
-    "complete_keys": "completing key names via SCAN (off by default)",
-    "autoconnect": "let a command open the connection by itself (on by default)",
+def _show(value: object) -> str:
+    return "on" if value is True else "off" if value is False else str(value)
+
+
+def _parse_bool(text: str) -> bool:
+    lowered = text.strip().lower()
+    if lowered in ("on", "true", "yes", "1"):
+        return True
+    if lowered in ("off", "false", "no", "0"):
+        return False
+    raise MagicError(f"%config: expected on or off, got '{text}'")
+
+
+def _parse_render_mode(text: str, magic: str = "%config") -> str:
+    mode = text.strip().lower()
+    if mode not in RENDER_MODES:
+        raise MagicError(f"{magic}: expected one of {', '.join(RENDER_MODES)}, got '{text}'")
+    return mode
+
+
+#: Kernel settings ``%config`` can read and write: the attribute on the session,
+#: how to parse a value for it, and why it defaults as it does. Deliberately
+#: distinct from the ``CONFIG`` command.
+CONFIG_SETTINGS: dict[str, tuple[str, Callable[[str], object], str]] = {
+    "complete_keys": (
+        "complete_keys",
+        _parse_bool,
+        "completing key names via SCAN (off by default)",
+    ),
+    "autoconnect": (
+        "autoconnect",
+        _parse_bool,
+        "let a command open the connection by itself (on by default)",
+    ),
+    "render": (
+        "render_mode",
+        _parse_render_mode,
+        f"how replies are rendered: {' or '.join(RENDER_MODES)}",
+    ),
 }
 
 
@@ -282,17 +316,38 @@ def _config(session: RedisSession, args: list[str], prompt: Prompt | None) -> st
     """``%config [name [value]]`` -- kernel settings, not server config."""
     del prompt
     if not args:
-        lines = [f"{name} = {_show(getattr(session, name))}" for name in CONFIG_SETTINGS]
+        lines = [f"{name} = {_show(_setting(session, name))}" for name in CONFIG_SETTINGS]
         return "\n".join(lines) + "\n"
     name = args[0]
     if name not in CONFIG_SETTINGS:
         raise MagicError(f"%config: unknown setting '{name}'. Known: {', '.join(CONFIG_SETTINGS)}")
+    attribute, parse, _ = CONFIG_SETTINGS[name]
     if len(args) == 1:
-        return f"{name} = {_show(getattr(session, name))}\n"
+        return f"{name} = {_show(_setting(session, name))}\n"
     if len(args) > 2:
         raise MagicError("%config: expected at most a name and a value")
-    setattr(session, name, _parse_bool(args[1]))
-    return f"{name} = {_show(getattr(session, name))}\n"
+    setattr(session, attribute, parse(args[1]))
+    return f"{name} = {_show(_setting(session, name))}\n"
+
+
+def _setting(session: RedisSession, name: str) -> object:
+    return getattr(session, CONFIG_SETTINGS[name][0])
+
+
+def _render(session: RedisSession, args: list[str], prompt: Prompt | None) -> str:
+    """``%render [rich|plain]`` -- rendering mode for the rest of this cell only.
+
+    A one-cell override of ``%config render``, cleared when the cell ends, so
+    looking at one reply as a table does not quietly change how every later
+    cell renders. With no argument it reports the mode in force.
+    """
+    del prompt
+    if not args:
+        return f"{session.render_mode_now}\n"
+    if len(args) > 1:
+        raise MagicError("%render: expected a single mode")
+    session.render_override = _parse_render_mode(args[0], magic="%render")
+    return f"{session.render_override} (this cell)\n"
 
 
 def _help(session: RedisSession, args: list[str], prompt: Prompt | None) -> str:
@@ -346,24 +401,12 @@ def _parse_int(name: str, text: str, magic: str = "%connect") -> int:
         raise MagicError(f"{magic}: '{text}' is not a {name} number") from exc
 
 
-def _show(value: object) -> str:
-    return "on" if value is True else "off" if value is False else str(value)
-
-
-def _parse_bool(text: str) -> bool:
-    lowered = text.strip().lower()
-    if lowered in ("on", "true", "yes", "1"):
-        return True
-    if lowered in ("off", "false", "no", "0"):
-        return False
-    raise MagicError(f"%config: expected on or off, got '{text}'")
-
-
 MAGICS: dict[str, Handler] = {
     "%connect": _connect,
     "%status": _status,
     "%select": _select,
     "%protocol": _protocol,
     "%config": _config,
+    "%render": _render,
     "%help": _help,
 }
