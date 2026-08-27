@@ -12,7 +12,7 @@ from typing import Any
 
 from ..formatter import RedisMap, RedisSet, Verbatim
 
-__all__ = ["as_items", "as_pairs", "as_text"]
+__all__ = ["as_items", "as_pairs", "as_score_pairs", "as_text", "rows_of_pairs"]
 
 
 def as_pairs(reply: Any) -> list[tuple[Any, Any]] | None:
@@ -40,6 +40,52 @@ def as_items(reply: Any) -> list[Any] | None:
     if isinstance(reply, (list, tuple)):
         return list(reply) or None
     return None
+
+
+def as_score_pairs(reply: Any) -> list[tuple[Any, Any]] | None:
+    """Read a member+score (or field+value) reply, RESP2 or RESP3, or ``None``.
+
+    ``ZRANGE ... WITHSCORES``, ``ZPOPMIN``/``ZPOPMAX``, and
+    ``HRANDFIELD ... WITHVALUES`` answer with a flat array under RESP2
+    (member, score, member, score, ...) and, when there is more than one
+    pair, an array of two-element arrays under RESP3. Unlike ``HGETALL``,
+    RESP3 does not upgrade this to a map: a sorted set's members are ordered
+    and can repeat in ways a map's keys cannot.
+    """
+    items = as_items(reply)
+    if not items:
+        return None
+    if isinstance(items[0], (list, tuple)):
+        pairs = []
+        for item in items:
+            pair = as_items(item)
+            if pair is None or len(pair) != 2:
+                return None
+            pairs.append((pair[0], pair[1]))
+        return pairs
+    if len(items) % 2:
+        return None
+    return [(items[i], items[i + 1]) for i in range(0, len(items), 2)]
+
+
+def rows_of_pairs(reply: Any) -> list[list[tuple[Any, Any]]] | None:
+    """Read a reply as a list of pairs-shaped entries, or ``None``.
+
+    ``XINFO GROUPS``/``XINFO CONSUMERS`` and similar answer with one entry
+    per item, each itself pairs-shaped (a RESP2 flat array or a RESP3 map) --
+    unlike ``FT.AGGREGATE``'s ``results`` array, there is no wrapping map to
+    unpack first.
+    """
+    items = as_items(reply)
+    if items is None:
+        return None
+    rows = []
+    for entry in items:
+        pairs = as_pairs(entry)
+        if pairs is None:
+            return None
+        rows.append(pairs)
+    return rows
 
 
 def as_text(reply: Any) -> str | None:

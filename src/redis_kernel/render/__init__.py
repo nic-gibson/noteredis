@@ -67,4 +67,16 @@ def _keys(args: list[str]) -> list[str]:
 # Registration happens on import, and these are imported for that side effect
 # alone -- hence the placement at the bottom, where ``renderer`` already exists
 # for them to decorate with.
-from . import info, json_reply, pairs, search, streams  # noqa: E402,F401  (side effects)
+from . import (  # noqa: E402,F401  (side effects)
+    client,
+    info,
+    json_reply,
+    latency,
+    pairs,
+    scores,
+    search,
+    slowlog,
+    streams,
+    timeseries,
+    xinfo,
+)
