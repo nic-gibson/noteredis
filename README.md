@@ -207,6 +207,7 @@ a bad command does.
 | `%protocol [2\|3]` | Show the RESP version, or reconnect using the other one, keeping the rest of the connection as it is. |
 | `%config [name [value]]` | Kernel settings: `complete_keys`, `autoconnect`, `render`. Unrelated to the `CONFIG` command. |
 | `%render [rich\|plain]` | Rendering mode for the rest of this cell only. See [Rich output](#rich-output). |
+| `%load <path> [-q\|--quiet]` | Run the Redis commands in a file, inline, as if they were typed into the cell. `--quiet` suppresses successful replies (errors still show). |
 | `%help [magic]` | List the magics, or explain one of them in full. |
 
 ### Rich output

@@ -1,4 +1,5 @@
-"""Cell magics for session control: ``%connect``, ``%status``, ``%select``, ``%protocol``.
+"""Cell magics for session control: ``%connect``, ``%status``, ``%select``, ``%protocol``,
+``%load``.
 
 Magics are the one place a cell does something that is not a Redis command, so
 they are kept apart from the command path. Each handler returns the text to
@@ -16,12 +17,22 @@ import os
 import re
 import textwrap
 from collections.abc import Callable
-from dataclasses import replace
+from dataclasses import dataclass, replace
 
-from .client import RENDER_MODES, ConnectionSettings, RedisSession, default_settings
+from .client import (
+    RENDER_MODES,
+    CommandLine,
+    ConnectionSettings,
+    RedisSession,
+    default_settings,
+    is_blocking,
+    split_cell,
+)
+from .formatter import format_error, format_reply
 
 __all__ = [
     "MAGICS",
+    "LoadRequest",
     "MagicError",
     "Prompt",
     "expand_variables",
@@ -29,6 +40,8 @@ __all__ = [
     "is_magic",
     "magic_names",
     "parse_connect",
+    "parse_load",
+    "read_command_file",
 ]
 
 
@@ -270,6 +283,107 @@ def _protocol(session: RedisSession, args: list[str], prompt: Prompt | None) -> 
     return f"RESP{session.protocol}\n"
 
 
+@dataclass(frozen=True)
+class LoadRequest:
+    """A parsed ``%load`` invocation: what to read, and how loud to be."""
+
+    path: str
+    quiet: bool
+
+
+def parse_load(args: list[str]) -> LoadRequest:
+    """Parse ``%load <path> [-q|--quiet]``.
+
+    The path expands ``$VAR``/``${VAR}`` the same way ``%connect``'s flags do,
+    so a shared demo repo can be checked out anywhere and pointed at with an
+    environment variable rather than a hard-coded path.
+    """
+    path: str | None = None
+    quiet = False
+    for arg in args:
+        if arg in ("-q", "--quiet"):
+            quiet = True
+        elif arg.startswith("-"):
+            raise MagicError(f"%load: unknown option '{arg}'. Try %help load")
+        elif path is None:
+            path = arg
+        else:
+            raise MagicError(f"%load: unexpected argument '{arg}'")
+    if path is None:
+        raise MagicError("%load: expected a file path")
+    return LoadRequest(path=expand_variables(path), quiet=quiet)
+
+
+def read_command_file(path: str) -> str:
+    """Read a ``%load`` file as text.
+
+    Raised as :class:`MagicError` rather than a raw traceback -- the same
+    treatment ``%connect`` already gives a missing certificate file.
+    """
+    try:
+        with open(path, encoding="utf-8") as handle:
+            return handle.read()
+    except OSError as exc:
+        raise MagicError(f"%load: {exc.strerror or exc}: {path}") from exc
+    except UnicodeDecodeError as exc:
+        raise MagicError(f"%load: {path} is not valid UTF-8 text") from exc
+
+
+def _load(session: RedisSession, args: list[str], prompt: Prompt | None) -> str:
+    """``%load <path> [-q|--quiet]`` -- run the Redis commands in a file.
+
+    Each line is one command, exactly as in a cell: blank lines and ``#``
+    comments are skipped, and a command that errors prints ``(error) ...``
+    and the file keeps going rather than stopping it. ``--quiet`` runs the
+    file but suppresses every one of its replies -- for demo setup or
+    teardown nobody needs to watch, without hiding a real error in it.
+
+    A loaded file may itself contain other magics such as ``%select``, but
+    not another ``%load``: nesting would risk a file loading itself. Blocking
+    commands (``SUBSCRIBE``, ``BLPOP key 0``, ...) are refused, the same as
+    they are in a cell.
+
+    This is the plain-text implementation, used when there is no kernel
+    around to add rich per-command rendering; the kernel itself runs a
+    loaded file's commands the same way it runs the rest of the cell, so
+    typed and loaded commands render alike.
+    """
+    request = parse_load(args)
+    text = read_command_file(request.path)
+    lines = [
+        _run_loaded_line(session, command, request.quiet, prompt) for command in split_cell(text)
+    ]
+    return "".join(lines)
+
+
+def _run_loaded_line(
+    session: RedisSession, command: CommandLine, quiet: bool, prompt: Prompt | None
+) -> str:
+    if not command.args:
+        return f"(error) unbalanced quotes: {command.source}\n"
+
+    if is_magic(command.args):
+        if command.args[0].lower() == "%load":
+            return "(error) %load: nested %load is not supported\n"
+        try:
+            text = handle_magic(session, command.args, prompt)
+        except MagicError as exc:
+            return f"(error) {exc}\n"
+        return "" if quiet else text
+
+    if is_blocking(command.args):
+        return (
+            f"(error) {command.name} never returns on its own and is not "
+            "supported by this kernel. Use redis-cli to watch a live feed\n"
+        )
+
+    try:
+        reply = session.execute(command.args)
+    except Exception as exc:
+        return format_error(exc)
+    return "" if quiet else format_reply(reply)
+
+
 def _show(value: object) -> str:
     return "on" if value is True else "off" if value is False else str(value)
 
@@ -409,5 +523,6 @@ MAGICS: dict[str, Handler] = {
     "%protocol": _protocol,
     "%config": _config,
     "%render": _render,
+    "%load": _load,
     "%help": _help,
 }

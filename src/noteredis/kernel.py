@@ -18,6 +18,7 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 from . import __version__
 from .client import (
     RICH,
+    CommandLine,
     NotConnected,
     RedisSession,
     is_blocking,
@@ -26,7 +27,7 @@ from .client import (
 )
 from .commands import CommandTable, load_command_table
 from .formatter import format_error, format_reply
-from .magics import MagicError, handle_magic, is_magic, magic_names
+from .magics import MagicError, handle_magic, is_magic, magic_names, parse_load, read_command_file
 from .render import render
 
 __all__ = ["RedisKernel"]
@@ -102,49 +103,9 @@ class RedisKernel(Kernel):
 
     def _execute_cell(self, code: str, silent: bool) -> dict[str, Any]:
         for command in split_cell(code):
-            if not command.args:
-                # Only unbalanced quotes reach here; split_cell kept the line.
-                self._emit(silent, f"(error) unbalanced quotes: {command.source}\n")
-                continue
-
-            if is_magic(command.args):
-                try:
-                    self._emit(silent, handle_magic(self.redis, command.args, self._askpass))
-                except MagicError as exc:
-                    self._emit(silent, f"(error) {exc}\n")
-                continue
-
-            if is_blocking(command.args):
-                # Deliberately out of scope: this kernel is for runbooks, not
-                # for watching a live feed. Refusing keeps the shell channel
-                # answering; running it would wedge the kernel until restart.
-                self._emit(
-                    silent,
-                    f"(error) {command.name} never returns on its own and is not "
-                    "supported by this kernel. Use redis-cli to watch a live feed\n",
-                )
-                continue
-
-            try:
-                reply = self.redis.execute(command.args)
-            except NotConnected as exc:
-                # autoconnect is off and nothing has run %connect yet. The cell
-                # is not at fault, so report and stop rather than repeating it
-                # for every remaining line.
-                self._emit(silent, f"(error) {exc}\n")
-                return self._error_reply(exc)
-            except (RedisConnectionError, RedisTimeoutError) as exc:
-                # The connection, not the command, is the problem: stop here
-                # and report it as a kernel fault.
-                self._emit(silent, format_error(exc))
-                return self._error_reply(exc)
-            except RedisError as exc:
-                # An error reply. Print it and carry on with the next line.
-                self._emit(silent, format_error(exc))
-                continue
-
-            if not silent:
-                self._emit_reply(command.args, reply)
+            abort = self._run_command(command, silent)
+            if abort is not None:
+                return abort
 
         return {
             "status": "ok",
@@ -152,6 +113,94 @@ class RedisKernel(Kernel):
             "payload": [],
             "user_expressions": {},
         }
+
+    def _run_command(
+        self, command: CommandLine, silent: bool, quiet: bool = False
+    ) -> dict[str, Any] | None:
+        """Run one command line, returning an error reply if the cell must stop.
+
+        Shared between the top-level cell loop and ``%load``, so a command
+        loaded from a file gets exactly the same magic dispatch,
+        blocking-command refusal and rich rendering as one typed directly
+        into a cell. ``quiet`` (distinct from Jupyter's own ``silent``) hides
+        a successful reply without hiding an error in it -- what ``%load
+        --quiet`` needs so a failed setup command still gets noticed.
+        """
+        if not command.args:
+            # Only unbalanced quotes reach here; split_cell kept the line.
+            self._emit(silent, f"(error) unbalanced quotes: {command.source}\n")
+            return None
+
+        if is_magic(command.args):
+            if command.args[0].lower() == "%load":
+                return self._run_load(command.args[1:], silent, quiet)
+            try:
+                text = handle_magic(self.redis, command.args, self._askpass)
+            except MagicError as exc:
+                self._emit(silent, f"(error) {exc}\n")
+                return None
+            self._emit(silent or quiet, text)
+            return None
+
+        if is_blocking(command.args):
+            # Deliberately out of scope: this kernel is for runbooks, not
+            # for watching a live feed. Refusing keeps the shell channel
+            # answering; running it would wedge the kernel until restart.
+            self._emit(
+                silent,
+                f"(error) {command.name} never returns on its own and is not "
+                "supported by this kernel. Use redis-cli to watch a live feed\n",
+            )
+            return None
+
+        try:
+            reply = self.redis.execute(command.args)
+        except NotConnected as exc:
+            # autoconnect is off and nothing has run %connect yet. The cell
+            # is not at fault, so report and stop rather than repeating it
+            # for every remaining line.
+            self._emit(silent, f"(error) {exc}\n")
+            return self._error_reply(exc)
+        except (RedisConnectionError, RedisTimeoutError) as exc:
+            # The connection, not the command, is the problem: stop here
+            # and report it as a kernel fault.
+            self._emit(silent, format_error(exc))
+            return self._error_reply(exc)
+        except RedisError as exc:
+            # An error reply. Print it and carry on with the next line.
+            self._emit(silent, format_error(exc))
+            return None
+
+        if not silent and not quiet:
+            self._emit_reply(command.args, reply)
+        return None
+
+    def _run_load(
+        self, args: list[str], silent: bool, quiet: bool = False
+    ) -> dict[str, Any] | None:
+        """``%load <path> [-q|--quiet]``, expanded inline into the cell.
+
+        Its commands run through :meth:`_run_command` exactly like the rest
+        of the cell -- rich rendering, blocking refusal, and per-line error
+        handling included -- rather than through the plain-text fallback in
+        ``magics.py`` that a kernel-less caller would get.
+        """
+        try:
+            request = parse_load(args)
+            text = read_command_file(request.path)
+        except MagicError as exc:
+            self._emit(silent, f"(error) {exc}\n")
+            return None
+
+        loaded_quiet = quiet or request.quiet
+        for command in split_cell(text):
+            if command.args and command.args[0].lower() == "%load":
+                self._emit(silent, "(error) %load: nested %load is not supported\n")
+                continue
+            abort = self._run_command(command, silent, loaded_quiet)
+            if abort is not None:
+                return abort
+        return None
 
     def _askpass(self, prompt: str) -> str:
         """Ask the frontend for a password, masked, over the stdin channel.
