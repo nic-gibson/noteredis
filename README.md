@@ -7,8 +7,7 @@ byte-for-byte in `text/plain`. Richer `text/html` / `application/json`
 representations layer on top of that, so `HGETALL` renders as a table without
 ever losing the plain text a support engineer would paste into a ticket.
 
-`redis-cli` is transient; a notebook is a saveable, diffable, re-runnable
-runbook.
+`redis-cli` is transient; a notebook can saved, diffed,  run multiple times...
 
 ## Requirements
 
@@ -23,9 +22,9 @@ pip install noteredis
 noteredis-install --user     # or: python -m noteredis.install --user
 ```
 
-(Working from a checkout instead? See [Development](#development).)
+If working from a checkout instead, see [Development](#development).
 
-Check it took:
+**Installed properly?**
 
 ```bash
 jupyter kernelspec list      # should list "redis"
@@ -38,14 +37,15 @@ Use `--sys-prefix` instead of `--user` to install into the current environment
 (handy in a container or a shared checkout), or `--prefix DIR` for somewhere
 specific.
 
-**Why the separate step.** Installing the package registers no kernel by
-itself — deliberately. The interpreter path isn't known until install time, so
-the spec inside the package is a template, and the installer is what writes a
+### Two step installation. 
+
+Installing the package registers no kernel by itself. The interpreter path isn't known until 
+install time, so the spec inside the package is a template, and the installer writes a
 real one with `sys.executable` in its `argv`. Shipping a spec that said `python`
 would leave it resolved against whatever `PATH` the Jupyter *server* has: right
-when the server and the kernel share an environment, and a puzzling
-`No module named noteredis` when they don't. Installing the template directly
-fails immediately instead, and says what to run.
+when the server and the kernel share an environment, and an error - 
+`No module named noteredis` when they don't. 
+
 
 ## Connecting
 
@@ -87,12 +87,7 @@ The flags are `redis-cli`'s own, so there is nothing new to learn:
 `%help connect` lists the same flags inside a notebook, so this page is not the
 only place they are written down.
 
-`--insecure`, `--cacert`, `--cert` and `--key` each imply `--tls`: connecting in
-the clear to someone who asked for a secure connection is the worse failure.
-`--sni` and `--tls-ciphers` are real `redis-cli` flags that redis-py cannot
-honour, and say so rather than being ignored.
-
-### Keeping the password out of the notebook
+### Keeping passwords out of the notebook
 
 A notebook gets committed, so there are two ways to connect without writing the
 secret into the file:
@@ -234,10 +229,9 @@ Some replies get a richer representation added alongside the text:
 | `CLIENT LIST` | one row per client, one column per property |
 | `TS.RANGE`, `TS.REVRANGE` | one row per sample |
 
-`text/plain` is always the exact `redis-cli` text, in every mode — a renderer
+`text/plain` is the exact `redis-cli` text, in every mode — a renderer
 only ever *adds* to the bundle. A renderer handed a reply shape it doesn't
-expect adds nothing and the plain text stands alone, so a rendering bug can
-never cost you your output.
+expect adds nothing and the plain text stands alone.
 
 Switch it off for the session, or for one cell:
 
@@ -305,7 +299,7 @@ REDIS_URL=redis://localhost:6379/0 pytest
 They install their kernelspec into a temporary directory, so running the tests
 never puts a kernel in your launcher.
 
-Two rules for anything added here:
+If adding new tests remember: 
 
 - Unit tests must not depend on `REDIS_URL` being set or unset, since settings
   fall back to it by design and CI points it at a service container.
