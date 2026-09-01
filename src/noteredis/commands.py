@@ -54,11 +54,15 @@ class CommandInfo:
     arity: int = 0
     flags: list[str] = field(default_factory=list)
     arguments: list[str] = field(default_factory=list)
+    #: Full parameter syntax, e.g. ``SET key value [NX | XX] [GET] ...``, built
+    #: by walking ``COMMAND DOCS``' argument tree. Empty on the ``COMMAND INFO``
+    #: fallback, which carries no argument shapes.
+    syntax: str = ""
     subcommands: dict[str, CommandInfo] = field(default_factory=dict)
 
     def render(self) -> str:
         """The Shift-Tab text for this command."""
-        lines = [self.name]
+        lines = [self.syntax or self.name]
         if self.summary:
             lines.append("")
             lines.append(self.summary)
@@ -232,6 +236,9 @@ def _command_from_docs(name: str, spec: Any, parent: str = "") -> CommandInfo:
         arity=_int(fields.get(b"arity")),
     )
     info.arguments = _argument_tokens(fields.get(b"arguments"))
+    info.syntax = " ".join(
+        part for part in (full_name, _format_arguments(fields.get(b"arguments"))) if part
+    )
     for sub_name, sub_spec in _map_pairs(fields.get(b"subcommands")):
         # COMMAND DOCS names subcommands "parent|child".
         child = _text(sub_name).split("|")[-1]
@@ -250,6 +257,54 @@ def _argument_tokens(arguments: Any) -> list[str]:
         # Containers (oneof/block) nest their own arguments.
         tokens.extend(_argument_tokens(fields.get(b"arguments")))
     return tokens
+
+
+def _format_arguments(arguments: Any) -> str:
+    """Render an argument list the way redis.io's syntax boxes do.
+
+    ``SET key value [NX | XX] [GET] [EX seconds | ...]`` -- one space-joined
+    unit per top-level argument, each already carrying its own brackets.
+    """
+    parts = [_format_argument(dict(_map_pairs(argument))) for argument in _iter(arguments)]
+    return " ".join(part for part in parts if part)
+
+
+def _format_argument(fields: dict[Any, Any]) -> str:
+    """Render one argument spec, recursing into ``oneof``/``block`` containers.
+
+    ``oneof`` children are alternatives (joined with ``|``); ``block``
+    children all apply together (joined with a space). A literal ``token``
+    (``EX``, ``NX``...) precedes the argument's name unless the type is
+    ``pure-token``, which has no value of its own. ``OPTIONAL`` wraps the
+    result in brackets and ``MULTIPLE`` appends ``...``, matching how
+    COMMAND DOCS marks repeatable and optional arguments.
+    """
+    type_ = _text(fields.get(b"type", b""))
+    token = _text(fields.get(b"token", b""))
+    name = _text(fields.get(b"name", b"")).lower()
+    flags = {_text(flag).upper() for flag in _iter(fields.get(b"flags"))}
+
+    if type_ in ("oneof", "block"):
+        nested = [
+            _format_argument(dict(_map_pairs(argument)))
+            for argument in _iter(fields.get(b"arguments"))
+        ]
+        joiner = " | " if type_ == "oneof" else " "
+        body = joiner.join(part for part in nested if part)
+    elif type_ == "pure-token":
+        body = token or name.upper()
+    elif token:
+        body = f"{token} {name}"
+    else:
+        body = name
+
+    if not body:
+        return ""
+    if "MULTIPLE" in flags:
+        body = f"{body} ..."
+    if "OPTIONAL" in flags:
+        body = f"[{body}]"
+    return body
 
 
 def _load_info(execute: Any) -> CommandTable:
